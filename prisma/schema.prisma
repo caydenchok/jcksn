@@ -1,0 +1,83 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Property {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String
+  price       Float
+  propertyType String
+  propertyCategory String @default("residential")
+  tenure      String   @default("freehold")
+  furnishing  String   @default("unfurnished")
+  lotType     String   @default("intermediate")
+  status      String   @default("available")
+  location    String
+  state       String   @default("")
+  size        String
+  landSize    String   @default("")
+  bedrooms    Int
+  bathrooms   Int
+  carParks    Int      @default(0)
+  features    String   @default("[]")
+  images      String   @default("[]")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  bookings    Booking[]
+}
+
+model AgentProfile {
+  id          Int      @id @default(autoincrement())
+  name        String
+  phone       String
+  email       String   @default("")
+  company     String   @default("")
+  licenseNo   String   @default("")
+  tagline     String   @default("Your trusted property agent")
+  bio         String   @default("")
+  welcomeMsg  String   @default("")
+  languages   String   @default("English, Malay")
+  specialities String  @default("Residential, Commercial")
+  profilePic  String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Booking {
+  id            Int      @id @default(autoincrement())
+  customerName  String
+  customerPhone String
+  propertyId    Int
+  property      Property @relation(fields: [propertyId], references: [id])
+  bookingType   String   // "viewing" | "callback"
+  date          String
+  time          String
+  status        String   @default("pending")
+  notes         String?
+  createdAt     DateTime @default(now())
+}
+
+model Conversation {
+  id          Int      @id @default(autoincrement())
+  phone       String   @unique
+  name        String?
+  lastMessage String
+  lastActive  DateTime @default(now())
+  createdAt   DateTime @default(now())
+  messages    ChatMessage[]
+}
+
+model ChatMessage {
+  id             Int          @id @default(autoincrement())
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
+  conversationId Int
+  role           String
+  content        String
+  timestamp      DateTime     @default(now())
+}
