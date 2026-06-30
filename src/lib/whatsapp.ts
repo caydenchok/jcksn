@@ -85,9 +85,14 @@ export async function startWhatsApp() {
 
   sock.ev.on('creds.update', saveCreds)
 
-  sock.ev.on('messages.upsert', async ({ messages }) => {
+  sock.ev.on('messages.upsert', async ({ messages, type }) => {
+    console.log(`[WA] messages.upsert event: type=${type}, count=${messages.length}`)
     for (const msg of messages) {
-      if (!msg.key.fromMe && msg.key.remoteJid?.endsWith('@s.whatsapp.net')) {
+      const fromMe = msg.key.fromMe
+      const jid = msg.key.remoteJid
+      console.log(`[WA] Message - fromMe: ${fromMe}, jid: ${jid}, type: ${msg.message?.conversation ? 'text' : 'other'}`)
+      if (!fromMe && jid?.endsWith('@s.whatsapp.net')) {
+        console.log(`[WA] Processing message from ${jid}`)
         await processMessage(msg)
       }
     }
