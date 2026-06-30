@@ -89,6 +89,23 @@ CREATE TABLE IF NOT EXISTS "AgentProfile" (
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" DATETIME NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS "Lead" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "name" TEXT NOT NULL DEFAULT '',
+    "phone" TEXT NOT NULL DEFAULT '',
+    "email" TEXT NOT NULL DEFAULT '',
+    "source" TEXT NOT NULL,
+    "message" TEXT NOT NULL DEFAULT '',
+    "location" TEXT NOT NULL DEFAULT '',
+    "budget" TEXT NOT NULL DEFAULT '',
+    "requirement" TEXT NOT NULL DEFAULT '',
+    "status" TEXT NOT NULL DEFAULT 'new',
+    "notes" TEXT NOT NULL DEFAULT '',
+    "matchedPropertyId" INTEGER,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);
 `;
 
 async function main() {
