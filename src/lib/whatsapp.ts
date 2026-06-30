@@ -86,13 +86,11 @@ export async function startWhatsApp() {
   sock.ev.on('creds.update', saveCreds)
 
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
-    console.log(`[WA] messages.upsert event: type=${type}, count=${messages.length}`)
     for (const msg of messages) {
       const fromMe = msg.key.fromMe
-      const jid = msg.key.remoteJid
-      console.log(`[WA] Message - fromMe: ${fromMe}, jid: ${jid}, type: ${msg.message?.conversation ? 'text' : 'other'}`)
-      if (!fromMe && jid?.endsWith('@s.whatsapp.net')) {
-        console.log(`[WA] Processing message from ${jid}`)
+      const jid = msg.key.remoteJid || ''
+      const isPersonal = jid.endsWith('@s.whatsapp.net') || jid.endsWith('@lid')
+      if (!fromMe && isPersonal) {
         await processMessage(msg)
       }
     }
@@ -101,9 +99,9 @@ export async function startWhatsApp() {
 
 async function processMessage(msg: any) {
   try {
-    const phone = msg.key.remoteJid!.replace('@s.whatsapp.net', '')
+    const jid = msg.key.remoteJid || ''
+    const phone = jid.replace('@s.whatsapp.net', '').replace('@lid', '')
     const content = getMessageContent(msg)
-    console.log(`[MSG] From: ${phone}, Content: ${content}`)
     if (!content) return
 
     // Check for commands first
@@ -287,7 +285,11 @@ ${agent.tagline}`
 
 export async function sendMessage(phone: string, text: string) {
   if (!sock) throw new Error('WhatsApp not connected')
-  const jid = phone.includes('@') ? phone : `${phone}@s.whatsapp.net`
+  // Handle both phone numbers and LIDs
+  let jid = phone
+  if (!phone.includes('@')) {
+    jid = `${phone}@s.whatsapp.net`
+  }
   await sock.sendMessage(jid, { text })
 }
 
