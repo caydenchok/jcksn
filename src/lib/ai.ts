@@ -163,33 +163,58 @@ async function searchProperties(message: string) {
 
   let where: any = { status: 'available' }
 
+  // Search by property category (rent vs buy)
   if (lowerMsg.includes('rent') || lowerMsg.includes('sewa') || lowerMsg.includes('rental')) {
-    where.propertyType = 'rent'
+    where.propertyCategory = 'rent'
   } else if (lowerMsg.includes('buy') || lowerMsg.includes('beli') || lowerMsg.includes('purchase')) {
-    where.propertyType = 'buy'
+    where.propertyCategory = 'buy'
   }
 
+  // Search by property type
+  const typeConditions: any[] = []
   if (lowerMsg.includes('condo') || lowerMsg.includes('apartment') || lowerMsg.includes('flat')) {
-    where.OR = where.OR || []
-    where.OR.push(
-      { title: { contains: 'condo' } },
-      { title: { contains: 'apartment' } },
-      { title: { contains: 'flat' } }
+    typeConditions.push(
+      { propertyType: { contains: 'Condominium' } },
+      { propertyType: { contains: 'Apartment' } },
+      { propertyType: { contains: 'Service Residence' } }
     )
   }
-
-  if (lowerMsg.includes('house') || lowerMsg.includes('teres') || lowerMsg.includes('semi-d')) {
-    where.OR = where.OR || []
-    where.OR.push(
-      { title: { contains: 'house' } },
-      { title: { contains: 'teres' } },
-      { title: { contains: 'semi-d' } }
+  if (lowerMsg.includes('house') || lowerMsg.includes('teres') || lowerMsg.includes('terrace')) {
+    typeConditions.push(
+      { propertyType: { contains: 'Terrace' } },
+      { propertyType: { contains: 'House' } }
     )
   }
+  if (lowerMsg.includes('semi') || lowerMsg.includes('semi-d')) {
+    typeConditions.push({ propertyType: { contains: 'Semi-Detached' } })
+  }
+  if (lowerMsg.includes('studio')) {
+    typeConditions.push({ propertyType: { contains: 'Studio' } })
+  }
+  if (lowerMsg.includes('bungalow')) {
+    typeConditions.push({ propertyType: { contains: 'Bungalow' } })
+  }
+  if (typeConditions.length > 0) {
+    where.OR = typeConditions
+  }
 
-  const bedroomMatch = message.match(/(\d+)\s*(?:bed|br|bilik)/i)
+  // Search by bedrooms
+  const bedroomMatch = message.match(/(\d+)\s*(?:bed|br|bilik| Bedroom)/i)
   if (bedroomMatch) {
     where.bedrooms = parseInt(bedroomMatch[1])
+  }
+
+  // Search by location
+  const locationMatch = message.match(/(?:in|at|kat|dekat)\s+([A-Za-z\s]+?)(?:\s*\?|\s*$|\s*,)/i)
+  if (locationMatch) {
+    const loc = locationMatch[1].trim()
+    if (loc.length > 2) {
+      where.OR = where.OR || []
+      where.OR.push(
+        { location: { contains: loc } },
+        { title: { contains: loc } }
+      )
+    }
   }
 
   return prisma.property.findMany({

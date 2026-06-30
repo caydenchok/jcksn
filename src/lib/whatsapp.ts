@@ -115,11 +115,41 @@ async function processMessage(msg: any) {
 
     if (aiReply.images && aiReply.images.length > 0 && sock) {
       for (const imagePath of aiReply.images) {
-        const imageBuffer = fs.readFileSync(imagePath)
-        await sock.sendMessage(msg.key.remoteJid!, {
-          image: imageBuffer,
-          caption: '',
-        })
+        try {
+          const fullPath = path.join(process.cwd(), 'public', imagePath)
+          if (fs.existsSync(fullPath)) {
+            const imageBuffer = fs.readFileSync(fullPath)
+            await sock.sendMessage(msg.key.remoteJid!, {
+              image: imageBuffer,
+              caption: '',
+            })
+          }
+        } catch (imgErr) {
+          console.error('Error sending image:', imgErr)
+        }
+      }
+    }
+
+    // Auto-create booking if AI detected booking intent
+    if (aiReply.intent === 'booking_viewing' || aiReply.intent === 'booking_callback') {
+      try {
+        const parsed = JSON.parse(aiReply.text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').replace(/^[\s\S]*?(\{[\s\S]*\})[\s\S]*$/, '$1') || '{}')
+        if (parsed.customerName && parsed.customerPhone) {
+          await prisma.booking.create({
+            data: {
+              customerName: parsed.customerName,
+              customerPhone: parsed.customerPhone || phone,
+              propertyId: parsed.propertyId || 1,
+              bookingType: aiReply.intent === 'booking_viewing' ? 'viewing' : 'callback',
+              date: parsed.date || new Date().toISOString().split('T')[0],
+              time: parsed.time || 'TBD',
+              status: 'pending',
+              notes: `Auto-created from WhatsApp conversation with ${phone}`,
+            },
+          })
+        }
+      } catch (bookingErr) {
+        // Booking creation is best-effort
       }
     }
   } catch (error) {

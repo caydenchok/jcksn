@@ -191,6 +191,26 @@ export default function LeadsPage() {
           ))}
         </div>
 
+        {/* Follow-up Alert */}
+        {stats.contacted > 0 && (
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 mb-8 flex items-center gap-3">
+            <svg className="w-5 h-5 text-amber-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            </svg>
+            <div className="flex-1">
+              <p className="text-sm text-amber-300 font-medium">{stats.contacted} leads need follow-up</p>
+              <p className="text-xs text-amber-400/70">Leads contacted 3+ days ago without conversion</p>
+            </div>
+            <Button
+              onClick={() => window.open('https://wa.me/', '_blank')}
+              variant="ghost"
+              className="text-amber-400 hover:text-amber-300 text-sm"
+            >
+              Send Follow-ups
+            </Button>
+          </div>
+        )}
+
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3 mb-8">
           <div className="flex items-center gap-2.5 px-5 py-3 rounded-xl bg-white/5 border border-white/5 flex-1">

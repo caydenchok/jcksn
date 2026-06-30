@@ -1,7 +1,19 @@
 'use client'
 
 import { useEffect, useState, useRef, ChangeEvent, ReactNode } from 'react'
+import dynamic from 'next/dynamic'
 import { BRAND } from '@/lib/brand'
+
+// 3D hero centerpiece — client-only (WebGL)
+const ThreeScene = dynamic(() => import('./ThreeScene'), { ssr: false })
+
+// Decorative stock photos used when a listing has no image / page is empty
+const FALLBACK_IMAGES = [
+  'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1400&q=80',
+  'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1400&q=80',
+  'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1400&q=80',
+  'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1400&q=80',
+]
 
 interface Property {
   id: number
@@ -38,10 +50,13 @@ interface AgentProfile {
 }
 
 const GOLD = '#E2A93B'   // fills, lines, icons, badges
-const GOLDT = '#96701A'  // gold text on white (AA contrast)
+const GOLDT = '#8A6512'  // gold text on light glass (AA contrast)
 const fontDisplay = { fontFamily: 'var(--font-display, Georgia, serif)' }
 const fontBody = { fontFamily: 'var(--font-body, system-ui, sans-serif)' }
 const EASE = 'cubic-bezier(0.16,1,0.3,1)'
+// Frosted-glass surface used throughout
+const glass = 'bg-white/40 backdrop-blur-2xl border border-white/60 shadow-[0_10px_50px_-15px_rgba(80,60,15,0.28)]'
+const glassSoft = 'bg-white/30 backdrop-blur-xl border border-white/50'
 
 const prefersReduced = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
@@ -62,6 +77,9 @@ const Icons = {
   villa: <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205l3 1m1.5.5l-1.5-.5M6.75 7.364V3h-3v18m3-13.636l10.5-3.819"/></svg>,
   apartment: <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3H21m-3.75 3H21"/></svg>,
   arrow: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>,
+  chat: <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z"/></svg>,
+  compass: <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9 9 0 100-18 9 9 0 000 18z"/><path strokeLinecap="round" strokeLinejoin="round" d="M9.75 9.75l4.5-1.5-1.5 4.5-4.5 1.5 1.5-4.5z"/></svg>,
+  key: <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z"/></svg>,
   check: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>,
 }
 
@@ -95,7 +113,7 @@ function Reveal({ children, className = '', delay = 0, variant = 'up', once = tr
   )
 }
 
-// Headline with word-by-word mask-up reveal (Igloo-style). Animates on mount.
+// Headline with word-by-word mask-up reveal. Animates on mount.
 function Words({ text, className = '', style }: { text: string; className?: string; style?: React.CSSProperties }) {
   const [m, setM] = useState(false)
   useEffect(() => { if (prefersReduced()) { setM(true); return } const t = setTimeout(() => setM(true), 60); return () => clearTimeout(t) }, [])
@@ -136,7 +154,7 @@ function StatNum({ value }: { value: number }) {
     io.observe(el)
     return () => io.disconnect()
   }, [value])
-  return <p ref={ref} className="font-semibold tracking-tight" style={{ ...fontDisplay, color: GOLDT, fontSize: 'clamp(2.5rem,5vw,4rem)' }}>{val}</p>
+  return <p ref={ref} className="font-semibold tracking-tight" style={{ ...fontDisplay, color: GOLDT, fontSize: 'clamp(2.75rem,5.5vw,4.5rem)' }}>{val}</p>
 }
 
 function Gallery({ images, title }: { images: string[]; title: string }) {
@@ -146,8 +164,8 @@ function Gallery({ images, title }: { images: string[]; title: string }) {
     <div className="relative w-full h-full group/g">
       {images.map((s,i)=><img key={i} src={s} alt={`${title} photo ${i+1}`} className={`absolute inset-0 w-full h-full object-cover transition-all duration-[900ms] ${i===cur?'opacity-100 scale-100':'opacity-0 scale-105'}`} style={{transitionTimingFunction:EASE}} loading="lazy"/>)}
       {images.length>1&&(<>
-        <button aria-label="Previous photo" onClick={(e)=>{e.stopPropagation();setCur(p=>p===0?images.length-1:p-1)}} className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/80 backdrop-blur-md flex items-center justify-center opacity-0 group-hover/g:opacity-100 transition-all text-neutral-800 hover:bg-white shadow-md">{Icons.chevronLeft}</button>
-        <button aria-label="Next photo" onClick={(e)=>{e.stopPropagation();setCur(p=>p===images.length-1?0:p+1)}} className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/80 backdrop-blur-md flex items-center justify-center opacity-0 group-hover/g:opacity-100 transition-all text-neutral-800 hover:bg-white shadow-md">{Icons.chevronRight}</button>
+        <button aria-label="Previous photo" onClick={(e)=>{e.stopPropagation();setCur(p=>p===0?images.length-1:p-1)}} className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/70 backdrop-blur-md flex items-center justify-center opacity-0 group-hover/g:opacity-100 transition-all text-neutral-800 hover:bg-white shadow-md border border-white/60">{Icons.chevronLeft}</button>
+        <button aria-label="Next photo" onClick={(e)=>{e.stopPropagation();setCur(p=>p===images.length-1?0:p+1)}} className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/70 backdrop-blur-md flex items-center justify-center opacity-0 group-hover/g:opacity-100 transition-all text-neutral-800 hover:bg-white shadow-md border border-white/60">{Icons.chevronRight}</button>
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">{images.map((_:any,i:number)=><button aria-label={`Go to photo ${i+1}`} key={i} onClick={(e)=>{e.stopPropagation();setCur(i)}} className={`h-1 rounded-full transition-all duration-300 ${i===cur?'bg-white w-6':'bg-white/60 w-3 hover:bg-white'}`}/>)}</div>
       </>)}
     </div>
@@ -161,15 +179,15 @@ function DetailModal({p,phone,agentName,onClose}:{p:Property;phone:string;agentN
   useEffect(()=>{const prev=document.body.style.overflow;document.body.style.overflow='hidden';return()=>{document.body.style.overflow=prev}},[])
   return(
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose} style={fontBody}>
-      <div className="absolute inset-0 bg-neutral-900/40 backdrop-blur-sm"/>
-      <div className="relative bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
-        <button aria-label="Close" onClick={onClose} className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/90 shadow flex items-center justify-center text-neutral-600 hover:bg-white transition-colors">{Icons.close}</button>
+      <div className="absolute inset-0 bg-neutral-900/40 backdrop-blur-md"/>
+      <div className="relative bg-white/90 backdrop-blur-2xl border border-white/70 rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+        <button aria-label="Close" onClick={onClose} className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/80 shadow flex items-center justify-center text-neutral-600 hover:bg-white transition-colors border border-white/60">{Icons.close}</button>
         <div className="relative h-72 sm:h-96 bg-neutral-100 overflow-hidden sm:rounded-t-3xl">
           {imgs.length?(<>
             {imgs.map((s:string,i:number)=><img key={i} src={s} alt={`${p.title} photo ${i+1}`} className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${i===cur?'opacity-100':'opacity-0'}`}/>)}
             {imgs.length>1&&(<>
-              <button aria-label="Previous photo" onClick={()=>setCur(v=>v===0?imgs.length-1:v-1)} className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/80 flex items-center justify-center text-neutral-800 hover:bg-white transition-colors shadow">{Icons.chevronLeft}</button>
-              <button aria-label="Next photo" onClick={()=>setCur(v=>v===imgs.length-1?0:v+1)} className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/80 flex items-center justify-center text-neutral-800 hover:bg-white transition-colors shadow">{Icons.chevronRight}</button>
+              <button aria-label="Previous photo" onClick={()=>setCur(v=>v===0?imgs.length-1:v-1)} className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/80 flex items-center justify-center text-neutral-800 hover:bg-white transition-colors shadow border border-white/60">{Icons.chevronLeft}</button>
+              <button aria-label="Next photo" onClick={()=>setCur(v=>v===imgs.length-1?0:v+1)} className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/80 flex items-center justify-center text-neutral-800 hover:bg-white transition-colors shadow border border-white/60">{Icons.chevronRight}</button>
               <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">{imgs.map((_:string,i:number)=><button aria-label={`Go to photo ${i+1}`} key={i} onClick={()=>setCur(i)} className={`h-1.5 rounded-full transition-all ${i===cur?'bg-white w-6':'bg-white/60 w-2'}`}/>)}</div>
             </>)}
             <div className="absolute top-4 left-4 flex gap-2">
@@ -191,14 +209,25 @@ function DetailModal({p,phone,agentName,onClose}:{p:Property;phone:string;agentN
           </div>
           <p className="text-neutral-600 text-sm leading-relaxed mb-6">{p.description}</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-            {[{v:p.bedrooms,l:'Bedrooms',icon:Icons.bed},{v:p.bathrooms,l:'Bathrooms',icon:Icons.bath},{v:p.carParks,l:'Car Parks',icon:Icons.car},{v:`${p.size} sqft`,l:'Built-up',icon:Icons.size}].map((x,i)=><div key={i} className="bg-neutral-50 rounded-xl p-4 text-center border border-neutral-100"><div className="flex justify-center mb-2" style={{color:GOLDT}}>{x.icon}</div><p className="text-xl font-bold text-neutral-900">{x.v}</p><p className="text-[11px] text-neutral-500 mt-1">{x.l}</p></div>)}
+            {[{v:p.bedrooms,l:'Bedrooms',icon:Icons.bed},{v:p.bathrooms,l:'Bathrooms',icon:Icons.bath},{v:p.carParks,l:'Car Parks',icon:Icons.car},{v:`${p.size} sqft`,l:'Built-up',icon:Icons.size}].map((x,i)=><div key={i} className="bg-white/50 rounded-xl p-4 text-center border border-white/60"><div className="flex justify-center mb-2" style={{color:GOLDT}}>{x.icon}</div><p className="text-xl font-bold text-neutral-900">{x.v}</p><p className="text-[11px] text-neutral-500 mt-1">{x.l}</p></div>)}
           </div>
           <div className="flex flex-wrap gap-2 mb-6">
-            {[p.furnishing,p.lotType,p.landSize&&`${p.landSize} sqft land`,p.state&&p.state].filter(Boolean).map((t,i)=><span key={i} className="px-3 py-1.5 rounded-lg bg-neutral-100 text-neutral-600 text-xs font-medium border border-neutral-200">{t}</span>)}
+            {[p.furnishing,p.lotType,p.landSize&&`${p.landSize} sqft land`,p.state&&p.state].filter(Boolean).map((t,i)=><span key={i} className="px-3 py-1.5 rounded-lg bg-white/60 text-neutral-600 text-xs font-medium border border-white/60">{t}</span>)}
           </div>
           <a href={`https://wa.me/${phone}?text=${encodeURIComponent(`Hi ${agentName}! I'm interested in "${p.title}" at ${p.location}.`)}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2.5 w-full py-4 rounded-full bg-[#25D366] hover:bg-[#1ebe5a] text-white font-semibold transition-all active:scale-[0.98] shadow-lg">{Icons.wa} Enquire on WhatsApp</a>
         </div>
       </div>
+    </div>
+  )
+}
+
+// Chapter eyebrow label
+function Chapter({ no, label }: { no: string; label: string }) {
+  return (
+    <div className="flex items-center gap-3 mb-5">
+      <span className="font-semibold" style={{ ...fontDisplay, color: GOLD }}>{no}</span>
+      <span className="h-px w-10" style={{ background: GOLD }} />
+      <span className="text-[11px] font-medium uppercase tracking-[0.3em] text-neutral-500">{label}</span>
     </div>
   )
 }
@@ -213,13 +242,11 @@ export default function PublicListingsPage() {
   const [sortBy,setSortBy]=useState('newest')
   const [progress,setProgress]=useState(0)
   const [scrolled,setScrolled]=useState(false)
+  const [active,setActive]=useState('top')
   const heroImgRef=useRef<HTMLImageElement>(null)
 
   useEffect(()=>{
-    Promise.all([
-      fetch('/api/properties').then(r=>r.ok?r.json():[]),
-      fetch('/api/agent').then(r=>r.ok?r.json():null)
-    ]).then(([props,agentData])=>{
+    Promise.all([fetch('/api/properties').then(r=>r.json()),fetch('/api/agent').then(r=>r.json())]).then(([props,agentData])=>{
       setProperties(Array.isArray(props)?props.filter((p:Property)=>p.status==='available'):[])
       setAgent(agentData)
       setLoading(false)
@@ -237,13 +264,24 @@ export default function PublicListingsPage() {
         const max=h.scrollHeight-h.clientHeight
         setProgress(max>0?h.scrollTop/max:0)
         setScrolled(h.scrollTop>24)
-        if(!reduced&&heroImgRef.current){heroImgRef.current.style.transform=`translate3d(0, ${h.scrollTop*0.18}px, 0) scale(1.12)`}
+        if(!reduced&&heroImgRef.current){heroImgRef.current.style.transform=`translate3d(0, ${h.scrollTop*0.15}px, 0) scale(1.12)`}
       })
     }
     onScroll()
     window.addEventListener('scroll',onScroll,{passive:true})
     return ()=>{window.removeEventListener('scroll',onScroll);if(raf)cancelAnimationFrame(raf)}
   },[])
+
+  // Track active chapter for the side nav
+  useEffect(()=>{
+    const secs=Array.from(document.querySelectorAll('[data-scene]'))
+    if(!secs.length)return
+    const io=new IntersectionObserver((entries)=>{
+      entries.forEach(e=>{if(e.isIntersecting)setActive((e.target as HTMLElement).id)})
+    },{threshold:0.5})
+    secs.forEach(s=>io.observe(s))
+    return ()=>io.disconnect()
+  },[loading])
 
   // Brand-safe display values — fall back to ZERO88 brand if Settings is empty
   const agentName=agent?.name||BRAND.agent
@@ -279,93 +317,120 @@ export default function PublicListingsPage() {
     {name:'Studio',type:'Studio',icon:Icons.apartment,count:properties.filter(p=>p.propertyType==='Studio').length},
   ]
 
-  const heroImg=properties.length>0?pi(properties[0].images)[0]:undefined
-  const showcaseImg=properties.length>1?pi(properties[1].images)[0]:heroImg
+  const heroImg=(properties.length>0&&pi(properties[0].images)[0])||FALLBACK_IMAGES[0]
   const waHref=(msg:string)=>`https://wa.me/${ph}?text=${encodeURIComponent(msg)}`
 
-  const valueProps=[
-    {n:'01',t:'Local Sabah expertise',d:'Deep, on-the-ground knowledge of Kota Kinabalu neighbourhoods, pricing and upcoming launches — so you move with confidence.'},
-    {n:'02',t:'Honest negotiation',d:'A licensed negotiator (REN 37532) working in your interest. Transparent advice, no pressure, and the best possible terms.'},
-    {n:'03',t:'End-to-end support',d:'From first WhatsApp to signing and handover — viewings, paperwork and financing guidance handled for you.'},
+  const story=[
+    {icon:Icons.chat,t:'It starts with a hello',d:'Message me on WhatsApp. Tell me your budget, your area, your dream — no forms, no pressure.'},
+    {icon:Icons.compass,t:'I learn what you need',d:'I listen, ask the right questions, and read the Sabah market so we search with intent.'},
+    {icon:Icons.home,t:'I curate the options',d:'Handpicked listings that actually fit — with honest pros and cons for each one.'},
+    {icon:Icons.key,t:'We view, and you move in',d:'Viewings, negotiation, paperwork and handover — I walk every step beside you.'},
+  ]
+
+  const chapters:[string,string,string][]=[
+    ['top','01','Welcome'],['story','02','The Search'],['numbers','03','Trust'],
+    ['browse','04','Types'],['listings','05','Homes'],['agent','06','Your Guide'],['contact','07','Begin'],
   ]
 
   return(
-    <div className="min-h-dvh bg-[#FBFAF8] text-neutral-900 selection:bg-[#E2A93B] selection:text-black antialiased" style={fontBody}>
-      <style>{`html{scroll-behavior:smooth}@keyframes zmarquee{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}@media (prefers-reduced-motion: reduce){.z-marquee{animation:none!important}html{scroll-behavior:auto}}`}</style>
+    <div className="relative min-h-dvh text-neutral-900 selection:bg-[#E2A93B] selection:text-black antialiased overflow-clip" style={fontBody}>
+      <style>{`
+        html{scroll-behavior:smooth;scroll-snap-type:y proximity;scroll-padding-top:5rem}
+        @keyframes zfloatA{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(6vw,-4vw) scale(1.15)}}
+        @keyframes zfloatB{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-7vw,5vw) scale(1.2)}}
+        @keyframes zfloatC{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(5vw,6vw) scale(1.1)}}
+        @keyframes zmarquee{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+        @media (prefers-reduced-motion: reduce){html{scroll-behavior:auto;scroll-snap-type:none}.z-anim{animation:none!important}}
+      `}</style>
+
+      {/* Full-page 3D property neighbourhood (WebGL) */}
+      <div className="fixed inset-0 -z-10 pointer-events-none"><ThreeScene/></div>
+
+      {/* Animated aurora background (sits behind the 3D layer) */}
+      <div className="fixed inset-0 -z-20 overflow-hidden bg-[#FAF7F0]">
+        <div className="z-anim absolute -top-[10%] -left-[5%] w-[55vw] h-[55vw] rounded-full blur-[110px] opacity-60" style={{background:'radial-gradient(circle, #F3D58C, transparent 70%)',animation:'zfloatA 22s ease-in-out infinite'}}/>
+        <div className="z-anim absolute top-[30%] right-[-10%] w-[50vw] h-[50vw] rounded-full blur-[120px] opacity-50" style={{background:'radial-gradient(circle, #E2A93B, transparent 70%)',animation:'zfloatB 26s ease-in-out infinite'}}/>
+        <div className="z-anim absolute bottom-[-15%] left-[20%] w-[45vw] h-[45vw] rounded-full blur-[120px] opacity-40" style={{background:'radial-gradient(circle, #EAD9BC, transparent 70%)',animation:'zfloatC 30s ease-in-out infinite'}}/>
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(250,247,240,0.6))]"/>
+      </div>
 
       {/* Scroll progress */}
       <div className="fixed top-0 left-0 right-0 h-[2px] z-[90] bg-transparent">
         <div className="h-full origin-left" style={{background:`linear-gradient(90deg, ${GOLD}, #F5D27A)`,transform:`scaleX(${progress})`}}/>
       </div>
 
-      {/* Nav */}
-      <header className={`fixed top-0 inset-x-0 z-[80] transition-all duration-500 ${scrolled?'bg-white/85 backdrop-blur-xl border-b border-black/5 shadow-[0_1px_20px_-10px_rgba(0,0,0,0.3)]':'bg-transparent border-b border-transparent'}`}>
-        <div className="max-w-7xl mx-auto px-6 sm:px-8 h-16 sm:h-20 flex items-center justify-between">
-          <a href="#top" className="flex items-baseline gap-2">
-            <span className={`text-xl sm:text-2xl font-bold tracking-[0.2em] transition-colors ${scrolled?'text-neutral-900':'text-neutral-900'}`} style={fontDisplay}>ZERO<span style={{color:GOLD}}>88</span></span>
-            <span className="hidden sm:inline text-[10px] tracking-[0.3em] text-neutral-400 uppercase">Property</span>
+      {/* Chapter side nav */}
+      <nav className="fixed right-5 top-1/2 -translate-y-1/2 z-[70] hidden lg:flex flex-col gap-3.5" aria-label="Chapters">
+        {chapters.map(([id,no,label])=>(
+          <a key={id} href={`#${id}`} className="group flex items-center gap-3 justify-end">
+            <span className={`text-[10px] font-semibold uppercase tracking-[0.15em] px-2.5 py-1 rounded-full transition-all duration-300 ${glass} ${active===id?'opacity-100 translate-x-0':'opacity-0 translate-x-2 group-hover:opacity-100 group-hover:translate-x-0'}`}>{no} · {label}</span>
+            <span className="w-2.5 h-2.5 rounded-full border transition-all duration-300" style={active===id?{background:GOLD,borderColor:GOLD,transform:'scale(1.3)'}:{borderColor:'rgba(0,0,0,0.25)',background:'rgba(255,255,255,0.6)'}}/>
           </a>
-          <nav className="hidden md:flex items-center gap-8 text-sm text-neutral-600">
-            <a href="#listings" className="hover:text-neutral-900 transition-colors">Listings</a>
-            <a href="#browse" className="hover:text-neutral-900 transition-colors">Categories</a>
-            <a href="#approach" className="hover:text-neutral-900 transition-colors">Approach</a>
-            <a href="#agent" className="hover:text-neutral-900 transition-colors">About</a>
-          </nav>
-          <a href={waHref(`Hi ${agentName}! I found your property page and would like to know more.`)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-4 sm:px-5 py-2.5 rounded-full bg-neutral-900 text-white hover:bg-neutral-800 transition-all active:scale-95">
-            <span className="hidden sm:inline">WhatsApp</span><span className="sm:hidden">Chat</span>
-          </a>
+        ))}
+      </nav>
+
+      {/* Top nav */}
+      <header className={`fixed top-0 inset-x-0 z-[80] transition-all duration-500 ${scrolled?'py-2.5':'py-4'}`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <div className={`flex items-center justify-between rounded-full px-5 sm:px-6 h-14 transition-all duration-500 ${scrolled?glass:'bg-transparent border border-transparent'}`}>
+            <a href="#top" className="flex items-baseline gap-2">
+              <span className="text-xl font-bold tracking-[0.2em] text-neutral-900" style={fontDisplay}>ZERO<span style={{color:GOLD}}>88</span></span>
+              <span className="hidden sm:inline text-[10px] tracking-[0.3em] text-neutral-400 uppercase">Property</span>
+            </a>
+            <nav className="hidden md:flex items-center gap-7 text-sm text-neutral-600">
+              <a href="#story" className="hover:text-neutral-900 transition-colors">Story</a>
+              <a href="#browse" className="hover:text-neutral-900 transition-colors">Browse</a>
+              <a href="#listings" className="hover:text-neutral-900 transition-colors">Listings</a>
+              <a href="#agent" className="hover:text-neutral-900 transition-colors">About</a>
+            </nav>
+            <a href={waHref(`Hi ${agentName}! I found your property page and would like to know more.`)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-4 sm:px-5 py-2.5 rounded-full bg-neutral-900 text-white hover:bg-neutral-800 transition-all active:scale-95">
+              <span className="hidden sm:inline">WhatsApp</span><span className="sm:hidden">Chat</span>
+            </a>
+          </div>
         </div>
       </header>
 
-      {/* Hero */}
-      <section id="top" className="relative min-h-dvh flex flex-col justify-center overflow-hidden pt-24 pb-16">
-        <div className="max-w-7xl mx-auto px-6 sm:px-8 w-full grid lg:grid-cols-12 gap-10 items-center">
-          {/* copy */}
+      {/* ===== SCENE 01 — HERO ===== */}
+      <section id="top" data-scene className="snap-start relative min-h-dvh flex flex-col justify-center pt-28 pb-20 overflow-hidden">
+        <span aria-hidden className="z-anim pointer-events-none select-none absolute -bottom-[4vw] left-1/2 -translate-x-1/2 text-[26vw] leading-none font-bold text-white/20 tracking-tighter whitespace-nowrap" style={fontDisplay}>ZERO88</span>
+        <div className="relative z-10 max-w-7xl mx-auto px-6 sm:px-8 w-full grid lg:grid-cols-12 gap-10 items-center">
           <div className="lg:col-span-6 relative z-10">
-            <Reveal>
-              <div className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full border bg-white text-[11px] sm:text-xs font-medium tracking-[0.15em] uppercase mb-8 shadow-sm" style={{borderColor:`${GOLD}55`,color:GOLDT}}>
-                <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{background:GOLD}}/>
-                {ren} · {BRAND.region}
-              </div>
-            </Reveal>
+            <Reveal><Chapter no="01" label="Welcome"/></Reveal>
             <h1 className="font-semibold text-neutral-900 tracking-tight leading-[0.95] mb-7" style={{...fontDisplay,fontSize:'clamp(2.75rem,6.5vw,6rem)'}}>
-              <Words text="Find your place" />
+              <Words text="Every home" />
               <br/>
-              <span className="italic" style={{color:GOLDT}}><Words text="in Sabah." /></span>
+              <span className="italic" style={{color:GOLDT}}><Words text="has a story." /></span>
             </h1>
             <Reveal delay={500}>
               <p className="text-neutral-600 text-base sm:text-xl max-w-lg mb-10 leading-relaxed">
-                {tagline}. Buy, sell and rent residential &amp; commercial property in {BRAND.city} with {agentName}.
+                {tagline}. Let&apos;s write the next chapter of yours — buying, selling or renting in {BRAND.region} with {agentName}.
               </p>
             </Reveal>
             <Reveal delay={620}>
               <div className="flex flex-col sm:flex-row gap-4">
-                <a href={waHref(`Hi ${agentName}! I found your property page and would like to know more.`)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2.5 bg-[#25D366] hover:bg-[#1ebe5a] text-white font-semibold px-8 py-4 rounded-full transition-all duration-200 shadow-[0_10px_40px_-12px_rgba(37,211,102,0.7)] active:scale-[0.97]">{Icons.wa} Chat on WhatsApp</a>
-                <a href="#listings" className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-full border border-neutral-300 text-neutral-800 font-semibold hover:border-neutral-900 hover:bg-white transition-all duration-200">
-                  Explore listings {Icons.arrow}
+                <a href={waHref(`Hi ${agentName}! I found your property page and would like to know more.`)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2.5 bg-[#25D366] hover:bg-[#1ebe5a] text-white font-semibold px-8 py-4 rounded-full transition-all duration-200 shadow-[0_10px_40px_-12px_rgba(37,211,102,0.7)] active:scale-[0.97]">{Icons.wa} Start on WhatsApp</a>
+                <a href="#story" className={`inline-flex items-center justify-center gap-2 px-8 py-4 rounded-full font-semibold text-neutral-800 hover:text-neutral-900 transition-all duration-200 ${glass}`}>
+                  See how it works {Icons.arrow}
                 </a>
               </div>
             </Reveal>
           </div>
 
-          {/* hero image */}
           <div className="lg:col-span-6 relative">
-            <Reveal variant="clip" delay={200} className="relative aspect-[4/5] sm:aspect-[3/4] lg:aspect-[4/5] rounded-[2rem] overflow-hidden shadow-[0_40px_80px_-30px_rgba(0,0,0,0.35)] border border-black/5">
-              {heroImg?<img ref={heroImgRef} src={heroImg} alt="Featured property" className="absolute inset-0 w-full h-full object-cover will-change-transform" style={{transform:'scale(1.12)'}}/>:<div className="absolute inset-0 bg-gradient-to-br from-neutral-200 to-neutral-100"/>}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent"/>
+            <Reveal variant="clip" delay={200} className="relative aspect-[4/5] rounded-[2rem] overflow-hidden shadow-[0_40px_90px_-30px_rgba(80,60,15,0.45)] border border-white/60">
+              {heroImg?<img ref={heroImgRef} src={heroImg} alt="Featured property" className="absolute inset-0 w-full h-full object-cover will-change-transform" style={{transform:'scale(1.12)'}}/>:<div className="absolute inset-0 bg-gradient-to-br from-[#F3D58C] to-[#EAD9BC]"/>}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent"/>
             </Reveal>
-            {/* floating agent chip */}
-            <Reveal delay={500} className="absolute -bottom-5 left-4 sm:-left-6 bg-white rounded-2xl shadow-xl border border-black/5 p-4 flex items-center gap-3">
+            <Reveal delay={500} className={`absolute -bottom-5 left-4 sm:-left-6 rounded-2xl p-4 flex items-center gap-3 ${glass}`}>
               {profilePic?<img src={profilePic} alt={agentName} className="w-12 h-12 rounded-xl object-cover"/>:<div className="w-12 h-12 rounded-xl flex items-center justify-center text-black font-bold" style={{background:GOLD,...fontDisplay}}>{agentName[0]?.toUpperCase()}</div>}
               <div>
                 <p className="font-semibold text-neutral-900 text-sm leading-tight">{agentName}</p>
-                <p className="text-xs" style={{color:GOLDT}}>{BRAND.jobTitle}</p>
+                <p className="text-xs" style={{color:GOLDT}}>{BRAND.jobTitle} · {ren}</p>
               </div>
             </Reveal>
           </div>
         </div>
 
-        {/* scroll cue */}
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 hidden sm:flex flex-col items-center gap-2 text-neutral-400">
           <span className="text-[10px] font-medium uppercase tracking-[0.3em]">Scroll</span>
           <div className="w-5 h-8 rounded-full border border-neutral-300 flex justify-center pt-1.5">
@@ -374,47 +439,74 @@ export default function PublicListingsPage() {
         </div>
       </section>
 
-      {/* Marquee strip */}
-      <div className="relative border-y border-black/[0.07] bg-white overflow-hidden py-5">
-        <div className="z-marquee flex w-max gap-12 whitespace-nowrap" style={{animation:'zmarquee 30s linear infinite'}}>
+      {/* marquee */}
+      <div className="relative overflow-hidden py-5 border-y border-white/50 bg-white/20 backdrop-blur-sm">
+        <div className="z-anim flex w-max gap-12 whitespace-nowrap" style={{animation:'zmarquee 30s linear infinite'}}>
           {Array.from({length:2}).map((_,r)=>(
             <div key={r} className="flex items-center gap-12">
               {['Buy','Sell','Rent','Kota Kinabalu','Sabah','Residential','Commercial','Trusted Negotiator'].map((t,i)=>(
-                <span key={i} className="flex items-center gap-12 text-2xl sm:text-3xl font-medium text-neutral-300" style={fontDisplay}>
-                  {t}<span className="text-lg" style={{color:GOLD}}>✦</span>
-                </span>
+                <span key={i} className="flex items-center gap-12 text-2xl sm:text-3xl font-medium text-neutral-400" style={fontDisplay}>{t}<span className="text-lg" style={{color:GOLD}}>✦</span></span>
               ))}
             </div>
           ))}
         </div>
       </div>
 
-      {/* Stats */}
-      <section className="py-20 sm:py-28">
-        <div className="max-w-7xl mx-auto px-6 sm:px-8">
-          <div className="grid grid-cols-2 lg:grid-cols-4 divide-x divide-black/[0.07] border-y border-black/[0.07]">
-            {[{v:stats.total,l:'Properties'},{v:stats.rent,l:'For Rent'},{v:stats.buy,l:'For Sale'},{v:stats.freehold,l:'Freehold'}].map((s,i)=>(
-              <Reveal key={i} delay={i*90} className="px-4 sm:px-8 py-10 text-center">
-                <StatNum value={s.v}/>
-                <p className="text-[11px] text-neutral-500 mt-2 font-medium uppercase tracking-[0.2em]">{s.l}</p>
+      {/* ===== SCENE 02 — STORY ===== */}
+      <section id="story" data-scene className="snap-start relative min-h-dvh flex flex-col justify-center py-24">
+        <div className="max-w-7xl mx-auto px-6 sm:px-8 w-full">
+          <Reveal className="max-w-2xl mb-14">
+            <Chapter no="02" label="The Search"/>
+            <h2 className="font-semibold text-neutral-900 tracking-tight" style={{...fontDisplay,fontSize:'clamp(2rem,5vw,3.75rem)'}}>It starts with a conversation.</h2>
+            <p className="text-neutral-600 text-lg mt-5">Buying or renting a home shouldn&apos;t feel like a transaction. Here&apos;s how we do it together.</p>
+          </Reveal>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {story.map((s,i)=>(
+              <Reveal key={i} delay={i*110} variant="up">
+                <div className={`group h-full rounded-3xl p-7 transition-all duration-500 hover:-translate-y-2 ${glass} hover:bg-white/55`}>
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-6 text-black transition-transform duration-500 group-hover:scale-110" style={{background:GOLD}}>{s.icon}</div>
+                  <p className="text-xs font-semibold mb-2" style={{color:GOLDT}}>STEP {i+1}</p>
+                  <h3 className="text-xl font-semibold text-neutral-900 mb-2.5" style={fontDisplay}>{s.t}</h3>
+                  <p className="text-neutral-600 text-sm leading-relaxed">{s.d}</p>
+                </div>
               </Reveal>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Browse by Type */}
-      <section id="browse" className="py-16 sm:py-24">
-        <div className="max-w-7xl mx-auto px-6 sm:px-8">
-          <Reveal className="mb-14">
-            <p className="text-xs font-medium uppercase tracking-[0.25em] mb-4" style={{color:GOLDT}}>— Explore</p>
-            <h2 className="font-semibold text-neutral-900 tracking-tight" style={{...fontDisplay,fontSize:'clamp(2rem,5vw,3.5rem)'}}>Browse by type</h2>
+      {/* ===== SCENE 03 — NUMBERS ===== */}
+      <section id="numbers" data-scene className="snap-start relative min-h-dvh flex flex-col justify-center py-24">
+        <div className="max-w-7xl mx-auto px-6 sm:px-8 w-full">
+          <Reveal className="text-center max-w-2xl mx-auto mb-14">
+            <div className="flex justify-center"><Chapter no="03" label="Trust"/></div>
+            <h2 className="font-semibold text-neutral-900 tracking-tight" style={{...fontDisplay,fontSize:'clamp(2rem,5vw,3.75rem)'}}>Backed by the numbers.</h2>
           </Reveal>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
+            {[{v:stats.total,l:'Properties'},{v:stats.rent,l:'For Rent'},{v:stats.buy,l:'For Sale'},{v:stats.freehold,l:'Freehold'}].map((s,i)=>(
+              <Reveal key={i} delay={i*100} variant="scale">
+                <div className={`rounded-3xl p-8 text-center ${glass}`}>
+                  <StatNum value={s.v}/>
+                  <p className="text-[11px] text-neutral-500 mt-3 font-medium uppercase tracking-[0.2em]">{s.l}</p>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ===== SCENE 04 — BROWSE ===== */}
+      <section id="browse" data-scene className="snap-start relative min-h-dvh flex flex-col justify-center py-24">
+        <div className="max-w-7xl mx-auto px-6 sm:px-8 w-full">
+          <Reveal className="mb-14">
+            <Chapter no="04" label="Types"/>
+            <h2 className="font-semibold text-neutral-900 tracking-tight" style={{...fontDisplay,fontSize:'clamp(2rem,5vw,3.75rem)'}}>Find your kind of place.</h2>
+          </Reveal>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
             {categories.map((cat,i)=>(
-              <Reveal key={i} delay={i*80} variant="scale">
-                <button onClick={()=>{setFilterType(cat.type===filterType?'all':cat.type);document.getElementById('listings')?.scrollIntoView({behavior:'smooth'})}} className={`group w-full p-7 rounded-2xl border text-left transition-all duration-300 hover:-translate-y-1 ${filterType===cat.type?'text-black shadow-lg':'bg-white border-black/[0.07] text-neutral-700 hover:shadow-xl hover:border-black/10'}`} style={filterType===cat.type?{background:GOLD,borderColor:GOLD}:undefined}>
-                  <div className="mb-8 transition-colors" style={{color:filterType===cat.type?'#1a1a1a':GOLDT}}>{cat.icon}</div>
+              <Reveal key={i} delay={i*90} variant="scale">
+                <button onClick={()=>{setFilterType(cat.type===filterType?'all':cat.type);document.getElementById('listings')?.scrollIntoView({behavior:'smooth'})}} className={`group w-full p-7 rounded-3xl text-left transition-all duration-300 hover:-translate-y-2 ${filterType===cat.type?'text-black shadow-lg':`${glass} hover:bg-white/55 text-neutral-700`}`} style={filterType===cat.type?{background:GOLD}:undefined}>
+                  <div className="mb-8 transition-transform duration-500 group-hover:scale-110" style={{color:filterType===cat.type?'#1a1a1a':GOLDT}}>{cat.icon}</div>
                   <p className="font-semibold text-lg" style={fontDisplay}>{cat.name}</p>
                   <p className={`text-sm mt-1 ${filterType===cat.type?'text-black/70':'text-neutral-500'}`}>{cat.count} listings</p>
                 </button>
@@ -424,66 +516,41 @@ export default function PublicListingsPage() {
         </div>
       </section>
 
-      {/* Approach — sticky editorial showcase */}
-      <section id="approach" className="bg-white border-y border-black/[0.07]">
-        <div className="max-w-7xl mx-auto px-6 sm:px-8 py-20 sm:py-28 grid lg:grid-cols-2 gap-12 lg:gap-20">
-          <div className="lg:sticky lg:top-28 lg:self-start">
-            <Reveal variant="clip" className="aspect-[4/5] rounded-[2rem] overflow-hidden shadow-[0_40px_80px_-30px_rgba(0,0,0,0.3)] border border-black/5">
-              {showcaseImg?<img src={showcaseImg} alt="Property in Kota Kinabalu" className="w-full h-full object-cover"/>:<div className="w-full h-full bg-gradient-to-br from-neutral-200 to-neutral-100"/>}
-            </Reveal>
-            <Reveal delay={150} className="mt-6">
-              <p className="text-xs font-medium uppercase tracking-[0.25em] mb-3" style={{color:GOLDT}}>— The ZERO88 approach</p>
-              <h2 className="font-semibold text-neutral-900 tracking-tight" style={{...fontDisplay,fontSize:'clamp(1.75rem,4vw,2.75rem)'}}>Property, done properly.</h2>
-            </Reveal>
-          </div>
-          <div className="space-y-16 sm:space-y-24 lg:py-10">
-            {valueProps.map((v,i)=>(
-              <Reveal key={i} delay={i*60} className="border-t border-black/10 pt-8">
-                <p className="font-semibold mb-4" style={{...fontDisplay,color:GOLD,fontSize:'clamp(2rem,4vw,3rem)'}}>{v.n}</p>
-                <h3 className="text-2xl font-semibold text-neutral-900 mb-3" style={fontDisplay}>{v.t}</h3>
-                <p className="text-neutral-600 leading-relaxed text-lg">{v.d}</p>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Listings */}
-      <section id="listings" className="py-16 sm:py-24">
+      {/* ===== SCENE 05 — LISTINGS ===== */}
+      <section id="listings" data-scene className="relative py-24">
         <div className="max-w-7xl mx-auto px-6 sm:px-8">
           <Reveal className="mb-10">
-            <p className="text-xs font-medium uppercase tracking-[0.25em] mb-4" style={{color:GOLDT}}>— Portfolio</p>
-            <h2 className="font-semibold text-neutral-900 tracking-tight" style={{...fontDisplay,fontSize:'clamp(2rem,5vw,3.5rem)'}}>Featured properties</h2>
+            <Chapter no="05" label="Homes"/>
+            <h2 className="font-semibold text-neutral-900 tracking-tight" style={{...fontDisplay,fontSize:'clamp(2rem,5vw,3.75rem)'}}>Handpicked spaces.</h2>
           </Reveal>
 
-          {/* Search & Filter bar */}
-          <div className="flex flex-col sm:flex-row gap-3 mb-12">
-            <div className="flex items-center gap-3 px-5 py-3.5 rounded-full bg-white border border-black/10 flex-1 shadow-sm focus-within:border-neutral-900 transition-colors">
+          <div className={`flex flex-col sm:flex-row gap-3 mb-12 p-2 rounded-3xl ${glass}`}>
+            <div className="flex items-center gap-3 px-5 py-3 rounded-full bg-white/60 border border-white/60 flex-1 focus-within:border-neutral-400 transition-colors">
               <span className="text-neutral-400">{Icons.search}</span>
               <input placeholder="Search location, title..." value={search} onChange={(e:ChangeEvent<HTMLInputElement>)=>setSearch(e.target.value)} className="bg-transparent border-0 p-0 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none w-full"/>
             </div>
-            <select aria-label="Filter by type" value={filterType} onChange={(e)=>setFilterType(e.target.value)} className="px-5 py-3.5 rounded-full bg-white border border-black/10 text-sm text-neutral-900 focus:outline-none focus:border-neutral-900 cursor-pointer shadow-sm">
+            <select aria-label="Filter by type" value={filterType} onChange={(e)=>setFilterType(e.target.value)} className="px-5 py-3 rounded-full bg-white/60 border border-white/60 text-sm text-neutral-900 focus:outline-none cursor-pointer">
               <option value="all">All Types</option>
               {categories.map(c=><option key={c.type} value={c.type}>{c.name}</option>)}
             </select>
-            <select aria-label="Sort listings" value={sortBy} onChange={(e)=>setSortBy(e.target.value)} className="px-5 py-3.5 rounded-full bg-white border border-black/10 text-sm text-neutral-900 focus:outline-none focus:border-neutral-900 cursor-pointer shadow-sm">
+            <select aria-label="Sort listings" value={sortBy} onChange={(e)=>setSortBy(e.target.value)} className="px-5 py-3 rounded-full bg-white/60 border border-white/60 text-sm text-neutral-900 focus:outline-none cursor-pointer">
               <option value="newest">Newest</option>
               <option value="price-low">Price: Low to High</option>
               <option value="price-high">Price: High to Low</option>
               <option value="size">Largest</option>
             </select>
-            <span className="text-sm text-neutral-400 flex items-center px-2">{filtered.length} results</span>
+            <span className="text-sm text-neutral-500 flex items-center px-3">{filtered.length} results</span>
           </div>
 
           {loading?(
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[1,2,3,4,5,6].map(i=><div key={i} className="rounded-2xl bg-white border border-black/[0.07] overflow-hidden animate-pulse"><div className="h-64 bg-neutral-100"/><div className="p-6 space-y-3"><div className="h-5 bg-neutral-100 rounded w-3/4"/><div className="h-4 bg-neutral-100 rounded w-1/2"/><div className="h-3 bg-neutral-100 rounded w-2/3"/></div></div>)}
+              {[1,2,3,4,5,6].map(i=><div key={i} className={`rounded-3xl overflow-hidden animate-pulse ${glass}`}><div className="h-64 bg-white/40"/><div className="p-6 space-y-3"><div className="h-5 bg-white/50 rounded w-3/4"/><div className="h-4 bg-white/50 rounded w-1/2"/><div className="h-3 bg-white/50 rounded w-2/3"/></div></div>)}
             </div>
           ):filtered.length===0?(
-            <div className="text-center py-24 bg-white rounded-3xl border border-black/[0.07]">
-              <svg className="w-20 h-20 mx-auto text-neutral-200 mb-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={0.75}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3H21m-3.75 3H21"/></svg>
+            <div className={`text-center py-24 rounded-3xl ${glass}`}>
+              <svg className="w-20 h-20 mx-auto text-neutral-300 mb-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={0.75}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3H21m-3.75 3H21"/></svg>
               <p className="text-neutral-700 text-lg font-medium" style={fontDisplay}>No properties found</p>
-              <p className="text-neutral-400 text-sm mt-2">Try adjusting your search or filters</p>
+              <p className="text-neutral-500 text-sm mt-2">Try adjusting your search or filters</p>
             </div>
           ):(
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -492,8 +559,8 @@ export default function PublicListingsPage() {
                 const psf=p.size?Math.round(p.price/parseInt(p.size)):0
                 return(
                   <Reveal key={p.id} delay={(idx%3)*90}>
-                  <div className="group bg-white rounded-2xl border border-black/[0.07] overflow-hidden hover:shadow-[0_30px_60px_-25px_rgba(0,0,0,0.3)] hover:-translate-y-1.5 transition-all duration-500 cursor-pointer h-full" onClick={()=>setSelected(p)}>
-                    <div className="relative h-64 bg-neutral-100 overflow-hidden">
+                  <div className={`group rounded-3xl overflow-hidden hover:-translate-y-2 transition-all duration-500 cursor-pointer h-full ${glass} hover:bg-white/55 hover:shadow-[0_30px_70px_-25px_rgba(80,60,15,0.45)]`} onClick={()=>setSelected(p)}>
+                    <div className="relative h-64 bg-neutral-100 overflow-hidden m-2 rounded-2xl">
                       <div className="absolute inset-0 transition-transform duration-[1200ms] group-hover:scale-105" style={{transitionTimingFunction:EASE}}><Gallery images={imgs} title={p.title}/></div>
                       <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent pointer-events-none"/>
                       <div className="absolute top-3 left-3 flex gap-1.5">
@@ -502,15 +569,12 @@ export default function PublicListingsPage() {
                       </div>
                       <div className="absolute bottom-3 left-3 right-3">
                         <p className="text-2xl font-semibold text-white drop-shadow-lg" style={fontDisplay}>RM {p.price.toLocaleString()}</p>
-                        {psf>0&&<p className="text-xs text-white/80">RM {psf.toLocaleString()} psf</p>}
+                        {psf>0&&<p className="text-xs text-white/85">RM {psf.toLocaleString()} psf</p>}
                       </div>
                     </div>
-                    <div className="p-5">
-                      <h3 className="text-lg font-semibold text-neutral-900 mb-1.5 line-clamp-1 transition-colors group-hover:text-[#96701A]" style={fontDisplay}>{p.title}</h3>
-                      <div className="flex items-center gap-1.5 text-neutral-500 text-sm mb-3">
-                        {Icons.location}
-                        <span className="truncate">{p.location}{p.state?`, ${p.state}`:''}</span>
-                      </div>
+                    <div className="px-5 pb-5 pt-2">
+                      <h3 className="text-lg font-semibold text-neutral-900 mb-1.5 line-clamp-1 transition-colors group-hover:text-[#8A6512]" style={fontDisplay}>{p.title}</h3>
+                      <div className="flex items-center gap-1.5 text-neutral-500 text-sm mb-3">{Icons.location}<span className="truncate">{p.location}{p.state?`, ${p.state}`:''}</span></div>
                       <p className="text-neutral-500 text-xs line-clamp-2 mb-4 leading-relaxed">{p.description}</p>
                       <div className="flex items-center gap-4 text-sm text-neutral-600 mb-4">
                         <span className="flex items-center gap-1.5" style={{color:GOLDT}}>{Icons.bed}<span className="text-neutral-600">{p.bedrooms}</span></span>
@@ -518,9 +582,9 @@ export default function PublicListingsPage() {
                         <span className="flex items-center gap-1.5" style={{color:GOLDT}}>{Icons.size}<span className="text-neutral-600">{p.size} sqft</span></span>
                       </div>
                       <div className="flex flex-wrap gap-1.5 mb-4">
-                        <span className="px-2 py-0.5 rounded-md bg-neutral-100 text-neutral-500 text-[11px] font-medium">{p.furnishing}</span>
-                        <span className="px-2 py-0.5 rounded-md bg-neutral-100 text-neutral-500 text-[11px] font-medium">{p.lotType}</span>
-                        {p.carParks>0&&<span className="px-2 py-0.5 rounded-md bg-neutral-100 text-neutral-500 text-[11px] font-medium">{p.carParks} car</span>}
+                        <span className="px-2 py-0.5 rounded-md bg-white/60 text-neutral-500 text-[11px] font-medium border border-white/60">{p.furnishing}</span>
+                        <span className="px-2 py-0.5 rounded-md bg-white/60 text-neutral-500 text-[11px] font-medium border border-white/60">{p.lotType}</span>
+                        {p.carParks>0&&<span className="px-2 py-0.5 rounded-md bg-white/60 text-neutral-500 text-[11px] font-medium border border-white/60">{p.carParks} car</span>}
                       </div>
                       <button onClick={e=>{e.stopPropagation();window.open(waHref(`Hi ${agentName}! I'm interested in "${p.title}" at ${p.location}.`),'_blank')}} className="w-full flex items-center justify-center gap-2 py-3 rounded-full bg-[#25D366] hover:bg-[#1ebe5a] text-white font-semibold text-sm transition-all duration-200 active:scale-[0.98]">{Icons.wa} Enquire on WhatsApp</button>
                     </div>
@@ -533,66 +597,68 @@ export default function PublicListingsPage() {
         </div>
       </section>
 
-      {/* Agent / About */}
-      <section id="agent" className="py-20 sm:py-28 bg-white border-t border-black/[0.07]">
+      {/* ===== SCENE 06 — AGENT ===== */}
+      <section id="agent" data-scene className="snap-start relative min-h-dvh flex flex-col justify-center py-24">
         <div className="max-w-7xl mx-auto px-6 sm:px-8 grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
           <Reveal variant="clip">
             <div className="relative">
-              <div className="aspect-[4/5] max-w-md rounded-[2rem] overflow-hidden border border-black/5 shadow-xl bg-gradient-to-br from-neutral-100 to-neutral-200">
+              <div className="aspect-[4/5] max-w-md rounded-[2rem] overflow-hidden border border-white/60 shadow-xl bg-gradient-to-br from-[#F3D58C] to-[#EAD9BC]">
                 {profilePic?<img src={profilePic} alt={agentName} className="w-full h-full object-cover"/>:(
-                  <div className="w-full h-full flex flex-col items-center justify-center text-center p-8">
-                    <div className="w-24 h-24 rounded-2xl flex items-center justify-center text-black text-4xl font-bold mb-5" style={{background:GOLD,...fontDisplay}}>{agentName[0]?.toUpperCase()}</div>
-                    <p className="text-neutral-900 text-xl font-semibold" style={fontDisplay}>{agentName}</p>
-                    <p className="text-sm mt-1" style={{color:GOLDT}}>{BRAND.jobTitle}</p>
+                  <div className="relative w-full h-full flex flex-col items-center justify-center text-center p-8">
+                    <img src={FALLBACK_IMAGES[3]} alt="" className="absolute inset-0 w-full h-full object-cover opacity-25"/>
+                    <div className="absolute inset-0 bg-gradient-to-t from-white/80 via-white/40 to-white/20"/>
+                    <div className="relative w-24 h-24 rounded-2xl flex items-center justify-center text-black text-4xl font-bold mb-5 shadow-lg" style={{background:GOLD,...fontDisplay}}>{agentName[0]?.toUpperCase()}</div>
+                    <p className="relative text-neutral-900 text-xl font-semibold" style={fontDisplay}>{agentName}</p>
+                    <p className="relative text-sm mt-1" style={{color:GOLDT}}>{BRAND.jobTitle}</p>
                   </div>
                 )}
               </div>
-              <div className="absolute -bottom-5 -right-2 sm:right-6 bg-white shadow-xl border border-black/5 rounded-2xl px-5 py-3">
-                <p className="text-[10px] text-neutral-400 uppercase tracking-[0.2em]">Licensed</p>
+              <div className={`absolute -bottom-5 -right-2 sm:right-6 rounded-2xl px-5 py-3 ${glass}`}>
+                <p className="text-[10px] text-neutral-500 uppercase tracking-[0.2em]">Licensed</p>
                 <p className="font-semibold" style={{...fontDisplay,color:GOLDT}}>{ren}</p>
               </div>
             </div>
           </Reveal>
           <Reveal delay={120}>
-            <p className="text-xs font-medium uppercase tracking-[0.25em] mb-4" style={{color:GOLDT}}>— Your negotiator</p>
+            <Chapter no="06" label="Your Guide"/>
             <h2 className="font-semibold text-neutral-900 tracking-tight mb-2" style={{...fontDisplay,fontSize:'clamp(2rem,5vw,3.25rem)'}}>{agentName}</h2>
             <p className="text-neutral-500 mb-6">{BRAND.jobTitle} · {company} <span className="text-neutral-300">·</span> {BRAND.companyCn}</p>
             <p className="text-neutral-700 leading-relaxed mb-8 max-w-xl text-lg">{bio}</p>
-
             <div className="space-y-5 mb-9">
               <div>
                 <p className="text-[10px] text-neutral-400 uppercase tracking-[0.2em] mb-2">Specialities</p>
-                <div className="flex flex-wrap gap-2">{specialities.map((s,i)=><span key={i} className="px-3 py-1.5 rounded-full bg-neutral-50 border border-black/[0.07] text-sm text-neutral-700">{s}</span>)}</div>
+                <div className="flex flex-wrap gap-2">{specialities.map((s,i)=><span key={i} className={`px-3 py-1.5 rounded-full text-sm text-neutral-700 ${glassSoft}`}>{s}</span>)}</div>
               </div>
               <div>
                 <p className="text-[10px] text-neutral-400 uppercase tracking-[0.2em] mb-2">Languages</p>
-                <div className="flex flex-wrap gap-2">{languages.map((s,i)=><span key={i} className="px-3 py-1.5 rounded-full bg-neutral-50 border border-black/[0.07] text-sm text-neutral-700">{s}</span>)}</div>
+                <div className="flex flex-wrap gap-2">{languages.map((s,i)=><span key={i} className={`px-3 py-1.5 rounded-full text-sm text-neutral-700 ${glassSoft}`}>{s}</span>)}</div>
               </div>
             </div>
-
             <div className="flex flex-wrap gap-3">
               <a href={waHref(`Hi ${agentName}! I'd like to ask about a property.`)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2.5 bg-[#25D366] hover:bg-[#1ebe5a] text-white font-semibold px-6 py-3.5 rounded-full transition-all active:scale-[0.97]">{Icons.wa} WhatsApp</a>
-              <a href={`mailto:${email}`} className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full border border-neutral-300 text-neutral-800 font-semibold hover:border-neutral-900 transition-all">Email</a>
-              <a href={BRAND.facebook} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 px-6 py-3.5 rounded-full border border-neutral-300 text-neutral-800 font-semibold hover:border-neutral-900 transition-all">Facebook</a>
+              <a href={`mailto:${email}`} className={`inline-flex items-center gap-2 px-6 py-3.5 rounded-full font-semibold text-neutral-800 hover:text-neutral-900 transition-all ${glass}`}>Email</a>
+              <a href={BRAND.facebook} target="_blank" rel="noopener noreferrer" className={`inline-flex items-center gap-2 px-6 py-3.5 rounded-full font-semibold text-neutral-800 hover:text-neutral-900 transition-all ${glass}`}>Facebook</a>
             </div>
           </Reveal>
         </div>
       </section>
 
-      {/* CTA band */}
-      <section className="relative py-24 sm:py-36 overflow-hidden bg-neutral-950 text-white">
-        <div className="absolute inset-0" style={{background:`radial-gradient(circle at center, rgba(226,169,59,0.18), transparent 60%)`}}/>
-        <div className="relative max-w-4xl mx-auto px-6 sm:px-8 text-center">
+      {/* ===== SCENE 07 — CONTACT ===== */}
+      <section id="contact" data-scene className="snap-start relative min-h-dvh flex flex-col justify-center py-24">
+        <div className="max-w-4xl mx-auto px-6 sm:px-8 w-full">
           <Reveal>
-            <h2 className="font-semibold tracking-tight mb-6" style={{...fontDisplay,fontSize:'clamp(2.25rem,6vw,4.5rem)'}}>Let&apos;s find your<br/><span className="italic" style={{color:GOLD}}>next address.</span></h2>
-            <p className="text-neutral-400 text-lg mb-10 max-w-xl mx-auto">Tell me what you&apos;re looking for — whether buying, selling or renting in {BRAND.region}. I&apos;ll do the legwork.</p>
-            <a href={waHref(`Hi ${agentName}! I'm looking for a property. Can you help me?`)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2.5 bg-[#25D366] hover:bg-[#1ebe5a] text-white font-semibold px-10 py-4 rounded-full transition-all duration-200 shadow-[0_10px_40px_-12px_rgba(37,211,102,0.7)] active:scale-[0.97]">{Icons.wa} Chat on WhatsApp</a>
+            <div className={`rounded-[2.5rem] px-6 sm:px-16 py-20 text-center ${glass}`}>
+              <div className="flex justify-center"><Chapter no="07" label="Begin"/></div>
+              <h2 className="font-semibold text-neutral-900 tracking-tight mb-6" style={{...fontDisplay,fontSize:'clamp(2.25rem,6vw,4.5rem)'}}>Your story<br/><span className="italic" style={{color:GOLDT}}>starts here.</span></h2>
+              <p className="text-neutral-600 text-lg mb-10 max-w-xl mx-auto">Tell me what you&apos;re looking for — buying, selling or renting in {BRAND.region}. I&apos;ll do the legwork.</p>
+              <a href={waHref(`Hi ${agentName}! I'm looking for a property. Can you help me?`)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2.5 bg-[#25D366] hover:bg-[#1ebe5a] text-white font-semibold px-10 py-4 rounded-full transition-all duration-200 shadow-[0_10px_40px_-12px_rgba(37,211,102,0.7)] active:scale-[0.97]">{Icons.wa} Chat on WhatsApp</a>
+            </div>
           </Reveal>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="bg-[#FBFAF8] border-t border-black/[0.07]">
+      <footer className="relative border-t border-white/50 bg-white/20 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-6 sm:px-8 py-14">
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
             <div className="lg:col-span-2">
@@ -605,9 +671,9 @@ export default function PublicListingsPage() {
             <div>
               <p className="text-[10px] text-neutral-400 uppercase tracking-[0.2em] mb-4">Contact</p>
               <ul className="space-y-2.5 text-sm text-neutral-600">
-                <li><a href={waHref('Hi! I found your property page.')} target="_blank" rel="noopener noreferrer" className="hover:text-[#96701A] transition-colors">{BRAND.phoneDisplay}</a></li>
-                <li><a href={`mailto:${email}`} className="hover:text-[#96701A] transition-colors break-all">{email}</a></li>
-                <li><a href={BRAND.facebook} target="_blank" rel="noopener noreferrer" className="hover:text-[#96701A] transition-colors">Facebook</a></li>
+                <li><a href={waHref('Hi! I found your property page.')} target="_blank" rel="noopener noreferrer" className="hover:text-[#8A6512] transition-colors">{BRAND.phoneDisplay}</a></li>
+                <li><a href={`mailto:${email}`} className="hover:text-[#8A6512] transition-colors break-all">{email}</a></li>
+                <li><a href={BRAND.facebook} target="_blank" rel="noopener noreferrer" className="hover:text-[#8A6512] transition-colors">Facebook</a></li>
               </ul>
             </div>
             <div>
@@ -619,7 +685,7 @@ export default function PublicListingsPage() {
               </ul>
             </div>
           </div>
-          <div className="pt-8 border-t border-black/[0.07] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-neutral-400">
+          <div className="pt-8 border-t border-white/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-neutral-400">
             <p>© {new Date().getFullYear()} {company}. All rights reserved.</p>
             <p>{BRAND.region}, {BRAND.country}</p>
           </div>
