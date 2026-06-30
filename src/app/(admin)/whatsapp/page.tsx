@@ -48,31 +48,38 @@ export default function WhatsAppPage() {
     status: 'disconnected',
     qr: null,
   })
-  const [loading, setLoading] = useState(false)
+  const [isConnecting, setIsConnecting] = useState(false)
 
   useEffect(() => {
     fetchStatus()
-    // Only poll if not connected
-    const interval = setInterval(() => {
-      if (status.status !== 'connected') {
-        fetchStatus()
+  }, [])
+
+  // Poll for status changes during connection
+  useEffect(() => {
+    if (!isConnecting) return
+    const interval = setInterval(async () => {
+      const data = await fetchStatus()
+      if (data.status === 'connected' || (data.status === 'disconnected' && !data.qr)) {
+        setIsConnecting(false)
       }
-    }, 3000)
+    }, 2000)
     return () => clearInterval(interval)
-  }, [status.status])
+  }, [isConnecting])
 
   async function fetchStatus() {
     try {
       const res = await fetch('/api/whatsapp')
       const data = await res.json()
       setStatus(data)
+      return data
     } catch (error) {
       console.error('Failed to fetch status:', error)
+      return { status: 'disconnected', qr: null }
     }
   }
 
   async function connectWhatsApp() {
-    setLoading(true)
+    setIsConnecting(true)
     try {
       await fetch('/api/whatsapp', {
         method: 'POST',
@@ -81,12 +88,11 @@ export default function WhatsAppPage() {
       })
     } catch (error) {
       console.error('Failed to connect:', error)
+      setIsConnecting(false)
     }
-    setLoading(false)
   }
 
   async function disconnectWhatsApp() {
-    setLoading(true)
     try {
       await fetch('/api/whatsapp', {
         method: 'POST',
@@ -97,7 +103,6 @@ export default function WhatsAppPage() {
     } catch (error) {
       console.error('Failed to disconnect:', error)
     }
-    setLoading(false)
   }
 
   return (
@@ -114,8 +119,8 @@ export default function WhatsAppPage() {
             <CardHeader className="pb-4">
               <CardTitle className="text-lg flex items-center gap-3">
                 <div className={`w-3 h-3 rounded-full ${
-                  status.status === 'connected' ? 'bg-emerald-500 animate-pulse' :
-                  status.status === 'connecting' ? 'bg-amber-500 animate-pulse' :
+                  status.status === 'connected' ? 'bg-emerald-500' :
+                  isConnecting ? 'bg-amber-500 animate-pulse' :
                   'bg-zinc-600'
                 }`} />
                 Connection Status
@@ -125,32 +130,30 @@ export default function WhatsAppPage() {
               <div className="flex items-center gap-4">
                 <div className={`px-5 py-2.5 rounded-xl font-medium text-sm ${
                   status.status === 'connected' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/20' :
-                  status.status === 'connecting' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/20' :
+                  isConnecting ? 'bg-amber-500/20 text-amber-400 border border-amber-500/20' :
                   'bg-white/5 text-zinc-500 border border-white/5'
                 }`}>
                   {status.status === 'connected' ? 'Connected' :
-                   status.status === 'connecting' ? 'Connecting...' :
+                   isConnecting ? 'Connecting...' :
                    'Disconnected'}
                 </div>
               </div>
 
               <div className="flex gap-3">
-                {status.status === 'disconnected' ? (
+                {status.status === 'connected' ? (
                   <Button
-                    onClick={connectWhatsApp}
-                    disabled={loading}
-                    className="flex-1 bg-white hover:bg-zinc-200 text-black font-semibold h-11 rounded-xl"
+                    onClick={disconnectWhatsApp}
+                    className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 font-semibold h-11 rounded-xl border border-red-500/20"
                   >
-                    {loading ? 'Connecting...' : 'Connect WhatsApp'}
+                    Disconnect
                   </Button>
                 ) : (
                   <Button
-                    onClick={disconnectWhatsApp}
-                    disabled={loading}
-                    variant="ghost"
-                    className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 font-semibold h-11 rounded-xl border border-red-500/20"
+                    onClick={connectWhatsApp}
+                    disabled={isConnecting}
+                    className="flex-1 bg-white hover:bg-zinc-200 text-black font-semibold h-11 rounded-xl"
                   >
-                    {loading ? 'Disconnecting...' : 'Disconnect'}
+                    {isConnecting ? 'Connecting...' : 'Connect WhatsApp'}
                   </Button>
                 )}
               </div>
@@ -192,10 +195,15 @@ export default function WhatsAppPage() {
                   <p className="text-white font-semibold text-lg">WhatsApp Connected!</p>
                   <p className="text-sm text-zinc-500 mt-2">Your AI assistant is ready to reply</p>
                 </div>
-              ) : status.qr ? (
+              ) : isConnecting && status.qr ? (
                 <div className="text-center">
                   <QRDisplay qrData={status.qr} />
                   <p className="text-sm text-zinc-500 mt-4">Scan this QR code with WhatsApp</p>
+                </div>
+              ) : isConnecting && !status.qr ? (
+                <div className="text-center">
+                  <div className="w-12 h-12 border-2 border-zinc-700 border-t-white rounded-full animate-spin mx-auto mb-4" />
+                  <p className="text-zinc-400">Generating QR code...</p>
                 </div>
               ) : (
                 <div className="text-center text-zinc-500">

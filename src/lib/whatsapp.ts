@@ -47,9 +47,6 @@ export async function startWhatsApp() {
     auth: state,
     printQRInTerminal: false,
     browser: ['JCKSN WhatsApp', 'Chrome', '3.0'],
-    connectTimeoutMs: 60000,
-    keepAliveIntervalMs: 30000,
-    markOnlineOnConnect: true,
   })
 
   sock.ev.on('connection.update', (update) => {
@@ -58,38 +55,33 @@ export async function startWhatsApp() {
     if (qr) {
       qrCode = qr
       connectionStatus = 'connecting'
-      console.log('[WA] QR code received, ready to scan')
+      console.log('[WA] QR code ready')
     }
 
     if (connection === 'close') {
       const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode
-      // 440 = session replaced, 515 = restart required after pairing (normal)
-      const isNormalClose = statusCode === 440 || statusCode === 515 || statusCode === DisconnectReason.loggedOut
-
       console.log(`[WA] Connection closed. Code: ${statusCode}`)
 
+      // Session replaced or logged out - clear auth
       if (statusCode === 440 || statusCode === DisconnectReason.loggedOut) {
-        console.log('[WA] Session replaced or logged out. Clearing auth...')
         connectionStatus = 'disconnected'
         qrCode = null
         clearAuth()
-      } else if (statusCode === 515) {
-        // Restart required after pairing - this is normal
-        console.log('[WA] Restart required after pairing, reconnecting...')
+        return
+      }
+
+      // Normal close or error - try to reconnect
+      if (statusCode !== DisconnectReason.connectionClosed) {
         connectionStatus = 'connecting'
         setTimeout(() => startWhatsApp(), 3000)
       } else {
         connectionStatus = 'disconnected'
         qrCode = null
-        // Only reconnect on actual errors, not normal closures
-        if (statusCode && statusCode !== DisconnectReason.connectionClosed) {
-          setTimeout(() => startWhatsApp(), 5000)
-        }
       }
     } else if (connection === 'open') {
       connectionStatus = 'connected'
       qrCode = null
-      console.log('[WA] WhatsApp connected successfully!')
+      console.log('[WA] Connected!')
     }
   })
 
@@ -97,11 +89,7 @@ export async function startWhatsApp() {
 
   sock.ev.on('messages.upsert', async ({ messages }) => {
     for (const msg of messages) {
-      const fromMe = msg.key.fromMe
-      const jid = msg.key.remoteJid
-      const isPersonal = jid?.endsWith('@s.whatsapp.net')
-      console.log(`[WA] Message received - fromMe: ${fromMe}, jid: ${jid}, isPersonal: ${isPersonal}`)
-      if (!fromMe && isPersonal) {
+      if (!msg.key.fromMe && msg.key.remoteJid?.endsWith('@s.whatsapp.net')) {
         await processMessage(msg)
       }
     }
