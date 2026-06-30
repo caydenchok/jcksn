@@ -253,3 +253,29 @@ export async function sendMessage(phone: string, text: string) {
   const jid = phone.includes('@') ? phone : `${phone}@s.whatsapp.net`
   await sock.sendMessage(jid, { text })
 }
+
+export async function disconnectWhatsApp() {
+  if (sock) {
+    try {
+      sock.end(undefined)
+    } catch {}
+    sock = null
+  }
+  qrCode = null
+  connectionStatus = 'disconnected'
+
+  // Clear auth files
+  try {
+    const fs = require('fs')
+    const path = require('path')
+    const authDir = path.join(process.cwd(), 'whatsapp-auth')
+    if (fs.existsSync(authDir)) {
+      const files = fs.readdirSync(authDir)
+      for (const file of files) {
+        fs.unlinkSync(path.join(authDir, file))
+      }
+    }
+  } catch {}
+
+  console.log('WhatsApp disconnected')
+}
