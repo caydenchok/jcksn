@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS "AgentProfile" (
     "tagline" TEXT NOT NULL DEFAULT 'Your trusted property agent',
     "bio" TEXT NOT NULL DEFAULT '',
     "welcomeMsg" TEXT NOT NULL DEFAULT '',
+    "enabledCommands" TEXT NOT NULL DEFAULT '[]',
     "languages" TEXT NOT NULL DEFAULT 'English, Malay',
     "specialities" TEXT NOT NULL DEFAULT 'Residential, Commercial',
     "profilePic" TEXT NOT NULL DEFAULT '',

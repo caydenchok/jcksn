@@ -1,14 +1,35 @@
 'use client'
 
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback, ChangeEvent } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import QRCode from 'qrcode'
 
 interface WhatsAppStatus {
   status: 'disconnected' | 'connecting' | 'connected'
   qr: string | null
 }
+
+interface BotConfig {
+  welcomeMessage: string
+  enabledCommands: string[]
+}
+
+const ALL_COMMANDS = [
+  { id: 'talk', name: '/talk', desc: 'Talk to agent directly' },
+  { id: 'booking', name: '/booking', desc: 'Book a viewing' },
+  { id: 'property', name: '/property', desc: 'View all properties' },
+  { id: 'rent', name: '/rent', desc: 'Rental properties' },
+  { id: 'buy', name: '/buy', desc: 'Properties for sale' },
+  { id: 'new', name: '/new', desc: 'Latest listings' },
+  { id: 'price', name: '/price', desc: 'View by price' },
+  { id: 'search', name: '/search', desc: 'Search tips' },
+  { id: 'agent', name: '/agent', desc: 'Agent info' },
+  { id: 'contact', name: '/contact', desc: 'Contact details' },
+  { id: 'help', name: '/help', desc: 'Show all commands' },
+]
 
 function QRDisplay({ qrData }: { qrData: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -49,9 +70,14 @@ export default function WhatsAppPage() {
     qr: null,
   })
   const [isConnecting, setIsConnecting] = useState(false)
+  const [config, setConfig] = useState<BotConfig>({
+    welcomeMessage: '',
+    enabledCommands: ['talk', 'booking', 'property', 'rent', 'buy', 'new', 'price', 'search', 'agent', 'contact', 'help'],
+  })
 
   useEffect(() => {
     fetchStatus()
+    fetchConfig()
     const interval = setInterval(fetchStatus, 3000)
     return () => clearInterval(interval)
   }, [])
@@ -69,6 +95,47 @@ export default function WhatsAppPage() {
       console.error('Failed to fetch status:', error)
       return { status: 'disconnected', qr: null }
     }
+  }
+
+  async function fetchConfig() {
+    try {
+      const res = await fetch('/api/agent')
+      const data = await res.json()
+      if (data) {
+        setConfig({
+          welcomeMessage: data.welcomeMsg || '',
+          enabledCommands: data.enabledCommands ? JSON.parse(data.enabledCommands) : ALL_COMMANDS.map(c => c.id),
+        })
+      }
+    } catch (error) {
+      console.error('Failed to fetch config:', error)
+    }
+  }
+
+  async function saveConfig() {
+    try {
+      await fetch('/api/agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'Agent',
+          phone: '',
+          welcomeMsg: config.welcomeMessage,
+          enabledCommands: JSON.stringify(config.enabledCommands),
+        }),
+      })
+    } catch (error) {
+      console.error('Failed to save config:', error)
+    }
+  }
+
+  function toggleCommand(commandId: string) {
+    setConfig(prev => ({
+      ...prev,
+      enabledCommands: prev.enabledCommands.includes(commandId)
+        ? prev.enabledCommands.filter(c => c !== commandId)
+        : [...prev.enabledCommands, commandId],
+    }))
   }
 
   async function connectWhatsApp() {
@@ -214,6 +281,54 @@ export default function WhatsAppPage() {
                   <p>Click &quot;Connect WhatsApp&quot; to generate QR code</p>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Bot Settings */}
+        <div className="mt-6">
+          <Card className="bg-[#0c0c0c] border-white/[0.04]">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg">Bot Settings</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Welcome Message */}
+              <div>
+                <Label className="text-zinc-400 text-xs font-medium uppercase tracking-wider">First Response / Welcome Message</Label>
+                <p className="text-xs text-zinc-600 mt-1 mb-2">This is what the bot says when a customer says hi or hello</p>
+                <textarea
+                  value={config.welcomeMessage}
+                  onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setConfig(prev => ({ ...prev, welcomeMessage: e.target.value }))}
+                  placeholder="Hi! I'm [Your Name], your property assistant. How can I help you today?"
+                  className="w-full h-24 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-zinc-600 text-sm focus:outline-none focus:ring-2 focus:ring-white/20 transition-all"
+                />
+              </div>
+
+              {/* Command Toggles */}
+              <div>
+                <Label className="text-zinc-400 text-xs font-medium uppercase tracking-wider">Enabled Commands</Label>
+                <p className="text-xs text-zinc-600 mt-1 mb-3">Toggle which commands are available to customers</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {ALL_COMMANDS.map(cmd => (
+                    <button
+                      key={cmd.id}
+                      onClick={() => toggleCommand(cmd.id)}
+                      className={`p-3 rounded-xl border text-left transition-all ${
+                        config.enabledCommands.includes(cmd.id)
+                          ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                          : 'bg-white/5 border-white/5 text-zinc-500'
+                      }`}
+                    >
+                      <p className="font-medium text-sm">{cmd.name}</p>
+                      <p className="text-xs opacity-70 mt-0.5">{cmd.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <Button onClick={saveConfig} className="w-full bg-white hover:bg-zinc-200 text-black font-semibold h-11 rounded-xl">
+                Save Bot Settings
+              </Button>
             </CardContent>
           </Card>
         </div>

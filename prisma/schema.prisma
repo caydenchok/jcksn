@@ -42,6 +42,7 @@ model AgentProfile {
   tagline     String   @default("Your trusted property agent")
   bio         String   @default("")
   welcomeMsg  String   @default("")
+  enabledCommands String @default("[]")
   languages   String   @default("English, Malay")
   specialities String  @default("Residential, Commercial")
   profilePic  String   @default("")

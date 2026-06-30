@@ -16,6 +16,20 @@ let connectionStatus: 'disconnected' | 'connecting' | 'connected' = 'disconnecte
 
 const AUTH_DIR = path.join(process.cwd(), 'whatsapp-auth')
 
+const ALL_COMMANDS = [
+  { id: 'talk', name: '/talk', desc: 'Talk to agent directly' },
+  { id: 'booking', name: '/booking', desc: 'Book a viewing' },
+  { id: 'property', name: '/property', desc: 'View all properties' },
+  { id: 'rent', name: '/rent', desc: 'Rental properties' },
+  { id: 'buy', name: '/buy', desc: 'Properties for sale' },
+  { id: 'new', name: '/new', desc: 'Latest listings' },
+  { id: 'price', name: '/price', desc: 'View by price' },
+  { id: 'search', name: '/search', desc: 'Search tips' },
+  { id: 'agent', name: '/agent', desc: 'Agent info' },
+  { id: 'contact', name: '/contact', desc: 'Contact details' },
+  { id: 'help', name: '/help', desc: 'Show all commands' },
+]
+
 export function getConnectionStatus() {
   return { status: connectionStatus, qr: qrCode }
 }
@@ -224,47 +238,38 @@ async function handleCommand(phone: string, content: string): Promise<string | n
   const agent = await prisma.agentProfile.findFirst()
   const agentName = agent?.name || 'JCKSN'
 
+  // Get enabled commands
+  let enabledCmds: string[] = ['talk', 'booking', 'property', 'rent', 'buy', 'new', 'price', 'search', 'agent', 'contact', 'help']
+  try {
+    if (agent?.enabledCommands) {
+      enabledCmds = JSON.parse(agent.enabledCommands)
+    }
+  } catch {}
+
   // Greetings - show welcome + commands
   const greetings = ['hi', 'hello', 'hey', 'hai', 'helo', 'sup', 'yo', 'hiya', 'good morning', 'good afternoon', 'good evening', 'pagi', 'selamat', 'hey there']
   if (greetings.some(g => cmd.startsWith(g) || cmd === g)) {
     const welcomeMsg = agent?.welcomeMsg || `Hi! I'm ${agentName}, your property assistant. How can I help you today?`
-    return `${welcomeMsg}
-
-📋 *Type these commands:*
-
-/talk - Talk to ${agentName} directly
-/booking - Book a viewing
-/property - View all properties
-/rent - Rental properties
-/buy - Properties for sale
-/search - Search tips
-/agent - Agent info
-/help - All commands`
+    const cmdList = enabledCmds.map(c => {
+      const found = ALL_COMMANDS.find(ac => ac.id === c)
+      return found ? `/${found.name.replace('/', '')} - ${found.desc}` : null
+    }).filter(Boolean).join('\n')
+    return `${welcomeMsg}\n\n📋 *Type these commands:*\n\n${cmdList}`
   }
 
   // /help - show all commands
   if (cmd === '/help' || cmd === 'help' || cmd === '?') {
-    return `📋 *All Available Commands*
+    const cmdList = enabledCmds.map(c => {
+      const found = ALL_COMMANDS.find(ac => ac.id === c)
+      return found ? `/${found.name.replace('/', '')} - ${found.desc}` : null
+    }).filter(Boolean).join('\n')
+    return `📋 *All Available Commands*\n\n${cmdList}\n\n💡 Or just chat naturally!\nExample: "condo in KL under RM500k"`
+  }
 
-👤 *Contact:*
-/talk - Talk to ${agentName} directly
-/booking - Book a viewing
-/agent - Agent info & contact
-/contact - Contact details
-
-🏠 *Properties:*
-/property - View all properties
-/search - Search by keyword
-/rent - Rental properties only
-/buy - Properties for sale
-/new - Latest listings
-/price - View by price range
-
-💬 *General:*
-/help - This message
-
-💡 Or just chat naturally!
-Example: "condo in KL under RM500k"`
+  // Check if command is enabled
+  const cmdId = cmd.replace('/', '')
+  if (!enabledCmds.includes(cmdId) && cmd.startsWith('/')) {
+    return `This command is currently disabled. Type /help to see available commands.`
   }
 
   // /talk - talk to agent directly
