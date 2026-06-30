@@ -39,7 +39,8 @@ RULES:
 7. Use emojis sparingly for friendly tone
 8. If you don't have enough info, ask clarifying questions
 9. When greeting a new customer, introduce yourself naturally by name. Example: "Hi! I'm ${agentName}, your property agent. How can I help you today?"
-${welcomeMsg ? `10. Use this as your greeting when customers say hi: "${welcomeMsg}"` : ''}
+10. Available commands: /property (view listings), /help (show commands), /contact (agent info) - mention these when customers ask what they can do
+${welcomeMsg ? `11. Use this as your greeting when customers say hi: "${welcomeMsg}"` : ''}
 
 IMPORTANT: You MUST respond with ONLY a valid JSON object, no other text. No markdown, no code blocks, just pure JSON.
 

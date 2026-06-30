@@ -76,6 +76,24 @@ async function processMessage(msg: any) {
     const content = getMessageContent(msg)
     if (!content) return
 
+    // Check for commands first
+    const commandResponse = await handleCommand(phone, content)
+    if (commandResponse) {
+      await prisma.conversation.upsert({
+        where: { phone },
+        create: { phone, lastMessage: content, messages: { create: { role: 'customer', content } } },
+        update: { lastMessage: content, lastActive: new Date(), messages: { create: { role: 'customer', content } } },
+      })
+
+      await prisma.chatMessage.create({
+        data: { conversationId: (await prisma.conversation.findUnique({ where: { phone } }))!.id, role: 'ai', content: commandResponse },
+      })
+
+      if (sock) await sock.sendMessage(msg.key.remoteJid!, { text: commandResponse })
+      return
+    }
+
+    // Regular AI flow
     const conversation = await prisma.conversation.upsert({
       where: { phone },
       create: {
@@ -167,6 +185,66 @@ function getMessageContent(msg: any): string | null {
   if (type === 'videoMessage') return msg.message.videoMessage?.caption || '[Video]'
   if (type === 'documentMessage') return msg.message.documentMessage?.fileName || '[Document]'
 
+  return null
+}
+
+async function handleCommand(phone: string, content: string): Promise<string | null> {
+  const cmd = content.toLowerCase().trim()
+
+  // /property or /list - show all properties
+  if (cmd === '/property' || cmd === '/list' || cmd === '/properties') {
+    const properties = await prisma.property.findMany({
+      where: { status: 'available' },
+      take: 10,
+      orderBy: { createdAt: 'desc' },
+    })
+
+    if (properties.length === 0) {
+      return 'No properties available at the moment. Check back soon!'
+    }
+
+    let response = '🏠 *Available Properties*\n\n'
+    properties.forEach((p, i) => {
+      response += `${i + 1}. *${p.title}*\n`
+      response += `   📍 ${p.location}\n`
+      response += `   💰 RM ${p.price.toLocaleString()}\n`
+      response += `   🛏️ ${p.bedrooms}BR/${p.bathrooms}BA | ${p.size}sqft\n`
+      response += `   📋 ${p.propertyType} | ${p.tenure}\n\n`
+    })
+    response += 'Reply with property number for details, or "help" for commands.'
+    return response
+  }
+
+  // /help - show available commands
+  if (cmd === '/help' || cmd === 'help') {
+    return `📋 *Available Commands*
+
+/property - View all available properties
+/help - Show this help message
+
+Or just chat naturally! I can help you:
+• Find properties by location, budget, or type
+• Book property viewings
+• Get property details
+• Answer your questions
+
+Try: "I want condo in KL under RM500k"`
+  }
+
+  // /contact - show agent contact
+  if (cmd === '/contact' || cmd === 'contact') {
+    const agent = await prisma.agentProfile.findFirst()
+    if (agent) {
+      return `👤 *${agent.name}*
+${agent.company ? `🏢 ${agent.company}\n` : ''}
+📱 ${agent.phone}
+${agent.email ? `📧 ${agent.email}\n` : ''}
+${agent.tagline}`
+    }
+    return 'Contact information not available.'
+  }
+
+  // Not a command
   return null
 }
 

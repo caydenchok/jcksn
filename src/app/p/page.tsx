@@ -55,8 +55,8 @@ const fontDisplay = { fontFamily: 'var(--font-display, Georgia, serif)' }
 const fontBody = { fontFamily: 'var(--font-body, system-ui, sans-serif)' }
 const EASE = 'cubic-bezier(0.16,1,0.3,1)'
 // Frosted-glass surface used throughout
-const glass = 'bg-white/40 backdrop-blur-2xl border border-white/60 shadow-[0_10px_50px_-15px_rgba(80,60,15,0.28)]'
-const glassSoft = 'bg-white/30 backdrop-blur-xl border border-white/50'
+const glass = 'bg-white/40 backdrop-blur-xl border border-white/60 shadow-[0_10px_50px_-15px_rgba(80,60,15,0.28)]'
+const glassSoft = 'bg-white/30 backdrop-blur-md border border-white/50'
 
 const prefersReduced = () => typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
@@ -335,7 +335,8 @@ export default function PublicListingsPage() {
   return(
     <div className="relative min-h-dvh text-neutral-900 selection:bg-[#E2A93B] selection:text-black antialiased overflow-clip" style={fontBody}>
       <style>{`
-        html{scroll-behavior:smooth;scroll-snap-type:y proximity;scroll-padding-top:5rem}
+        html{scroll-behavior:smooth;scroll-padding-top:5rem}
+        @media (min-width:1024px){html{scroll-snap-type:y proximity}}
         @keyframes zfloatA{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(6vw,-4vw) scale(1.15)}}
         @keyframes zfloatB{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-7vw,5vw) scale(1.2)}}
         @keyframes zfloatC{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(5vw,6vw) scale(1.1)}}
@@ -402,7 +403,7 @@ export default function PublicListingsPage() {
               <span className="italic" style={{color:GOLDT}}><Words text="has a story." /></span>
             </h1>
             <Reveal delay={500}>
-              <p className="text-neutral-600 text-base sm:text-xl max-w-lg mb-10 leading-relaxed">
+              <p className="text-neutral-700 text-base sm:text-xl max-w-lg mb-10 leading-relaxed" style={{ textShadow: '0 1px 12px rgba(250,247,240,0.95), 0 0 4px rgba(250,247,240,0.9)' }}>
                 {tagline}. Let&apos;s write the next chapter of yours — buying, selling or renting in {BRAND.region} with {agentName}.
               </p>
             </Reveal>

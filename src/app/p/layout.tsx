@@ -95,7 +95,7 @@ export default function PublicLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className={`${display.variable} ${body.variable} bg-[#FAF7F0]`}>
+    <div className={`${display.variable} ${body.variable}`}>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
