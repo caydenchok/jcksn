@@ -32,9 +32,7 @@ function clearAuth() {
 }
 
 export async function startWhatsApp() {
-  // Clear old auth to force fresh QR scan each time
-  clearAuth()
-
+  // Only clear auth if explicitly requested (not on normal reconnects)
   if (!fs.existsSync(AUTH_DIR)) {
     fs.mkdirSync(AUTH_DIR, { recursive: true })
   }
@@ -60,24 +58,24 @@ export async function startWhatsApp() {
 
     if (connection === 'close') {
       const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode
-      console.log(`[WA] Connection closed. Code: ${statusCode}`)
+      console.log(`[WA] Closed. Code: ${statusCode}`)
 
-      // Session replaced or logged out - clear auth
-      if (statusCode === 440 || statusCode === DisconnectReason.loggedOut) {
+      // 440 = session replaced by another device - must clear auth
+      if (statusCode === 440) {
+        console.log('[WA] Session replaced. Clear auth and start fresh.')
         connectionStatus = 'disconnected'
         qrCode = null
         clearAuth()
         return
       }
 
-      // Normal close or error - try to reconnect
-      if (statusCode !== DisconnectReason.connectionClosed) {
-        connectionStatus = 'connecting'
-        setTimeout(() => startWhatsApp(), 3000)
-      } else {
-        connectionStatus = 'disconnected'
-        qrCode = null
-      }
+      // 515 = restart required after pairing - this is NORMAL, just reconnect
+      // LoggedOut = user logged out
+      // Other codes = error, try reconnect
+      connectionStatus = 'disconnected'
+      qrCode = null
+      setTimeout(() => startWhatsApp(), 2000)
+
     } else if (connection === 'open') {
       connectionStatus = 'connected'
       qrCode = null
@@ -296,5 +294,5 @@ export async function disconnectWhatsApp() {
   qrCode = null
   connectionStatus = 'disconnected'
   clearAuth()
-  console.log('[WA] WhatsApp disconnected')
+  console.log('[WA] Disconnected by user')
 }
