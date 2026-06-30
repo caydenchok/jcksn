@@ -164,6 +164,8 @@ export default function WhatsAppPage() {
               <div className="p-4 rounded-xl bg-white/5 text-sm text-zinc-400 border border-white/5">
                 <p className="font-medium text-white mb-3">Available Commands:</p>
                 <div className="space-y-1.5">
+                  <p><code className="text-emerald-400 bg-white/5 px-1.5 py-0.5 rounded">/talk</code> - Talk to agent directly</p>
+                  <p><code className="text-emerald-400 bg-white/5 px-1.5 py-0.5 rounded">/booking</code> - Book a viewing</p>
                   <p><code className="text-emerald-400 bg-white/5 px-1.5 py-0.5 rounded">/property</code> - View all properties</p>
                   <p><code className="text-emerald-400 bg-white/5 px-1.5 py-0.5 rounded">/rent</code> - Rental properties</p>
                   <p><code className="text-emerald-400 bg-white/5 px-1.5 py-0.5 rounded">/buy</code> - Properties for sale</p>

@@ -222,18 +222,62 @@ function getMessageContent(msg: any): string | null {
 async function handleCommand(phone: string, content: string): Promise<string | null> {
   const cmd = content.toLowerCase().trim()
   const agent = await prisma.agentProfile.findFirst()
-  const agentName = agent?.name || 'Property Agent'
+  const agentName = agent?.name || 'JCKSN'
 
   // Greetings - show welcome + commands
   const greetings = ['hi', 'hello', 'hey', 'hai', 'helo', 'sup', 'yo', 'hiya', 'good morning', 'good afternoon', 'good evening', 'pagi', 'selamat', 'hey there']
   if (greetings.some(g => cmd.startsWith(g) || cmd === g)) {
     const welcomeMsg = agent?.welcomeMsg || `Hi! I'm ${agentName}, your property assistant. How can I help you today?`
-    return `${welcomeMsg}\n\n📋 *Type these commands:*\n\n/property - View all properties\n/search - Search properties\n/rent - View rental properties\n/buy - View properties for sale\n/price - View by price range\n/agent - Agent info\n/help - All commands`
+    return `${welcomeMsg}
+
+📋 *Type these commands:*
+
+/talk - Talk to ${agentName} directly
+/booking - Book a viewing
+/property - View all properties
+/rent - Rental properties
+/buy - Properties for sale
+/search - Search tips
+/agent - Agent info
+/help - All commands`
   }
 
   // /help - show all commands
   if (cmd === '/help' || cmd === 'help' || cmd === '?') {
-    return `📋 *All Available Commands*\n\n🏠 *Property Commands:*\n/property - View all properties\n/search - Search by keyword\n/rent - Rental properties only\n/buy - Buy properties only\n/price - View by price range\n/new - Latest listings\n\n👤 *Agent Commands:*\n/agent - Agent info & contact\n/contact - Contact details\n\n💬 *General:*\n/help - This message\n\nOr just chat naturally!\nExample: "condo in KL under RM500k"`
+    return `📋 *All Available Commands*
+
+👤 *Contact:*
+/talk - Talk to ${agentName} directly
+/booking - Book a viewing
+/agent - Agent info & contact
+/contact - Contact details
+
+🏠 *Properties:*
+/property - View all properties
+/search - Search by keyword
+/rent - Rental properties only
+/buy - Properties for sale
+/new - Latest listings
+/price - View by price range
+
+💬 *General:*
+/help - This message
+
+💡 Or just chat naturally!
+Example: "condo in KL under RM500k"`
+  }
+
+  // /talk - talk to agent directly
+  if (cmd === '/talk' || cmd === '/talk to ' + agentName.toLowerCase() || cmd.startsWith('/talk to')) {
+    if (agent?.phone) {
+      return `💬 *Talk to ${agentName}*\n\n📱 Call/WhatsApp: ${agent.phone}\n${agent.company ? `🏢 ${agent.company}\n` : ''}\nOr just type your question below and I'll help you!`
+    }
+    return `💬 *Talk to ${agentName}*\n\nContact information not available. Just type your question below!`
+  }
+
+  // /booking - book a viewing
+  if (cmd === '/booking' || cmd === '/book') {
+    return `📅 *Book a Viewing*\n\nTo book a property viewing, please provide:\n\n1️⃣ Your name\n2️⃣ Your phone number\n3️⃣ Property you want to view\n4️⃣ Preferred date and time\n\nExample:\n"I want to view the condo in KLCC on Saturday at 2pm"\n\nOr just tell me what you're looking for!`
   }
 
   // /property or /list - show all properties
