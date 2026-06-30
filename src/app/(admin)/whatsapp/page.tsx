@@ -52,25 +52,18 @@ export default function WhatsAppPage() {
 
   useEffect(() => {
     fetchStatus()
-  }, [])
-
-  // Poll for status changes during connection
-  useEffect(() => {
-    if (!isConnecting) return
-    const interval = setInterval(async () => {
-      const data = await fetchStatus()
-      if (data.status === 'connected' || (data.status === 'disconnected' && !data.qr)) {
-        setIsConnecting(false)
-      }
-    }, 2000)
+    const interval = setInterval(fetchStatus, 3000)
     return () => clearInterval(interval)
-  }, [isConnecting])
+  }, [])
 
   async function fetchStatus() {
     try {
       const res = await fetch('/api/whatsapp')
       const data = await res.json()
       setStatus(data)
+      if (data.status === 'connected') {
+        setIsConnecting(false)
+      }
       return data
     } catch (error) {
       console.error('Failed to fetch status:', error)

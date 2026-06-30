@@ -103,19 +103,21 @@ async function processMessage(msg: any) {
 
     // Check for commands first
     const commandResponse = await handleCommand(phone, content)
-    console.log(`[CMD] Command response: ${commandResponse ? 'YES' : 'NO'}`)
     if (commandResponse) {
-      await prisma.conversation.upsert({
+      const conversation = await prisma.conversation.upsert({
         where: { phone },
         create: { phone, lastMessage: content, messages: { create: { role: 'customer', content } } },
         update: { lastMessage: content, lastActive: new Date(), messages: { create: { role: 'customer', content } } },
       })
 
       await prisma.chatMessage.create({
-        data: { conversationId: (await prisma.conversation.findUnique({ where: { phone } }))!.id, role: 'ai', content: commandResponse },
+        data: { conversationId: conversation.id, role: 'ai', content: commandResponse },
       })
 
-      if (sock) await sock.sendMessage(msg.key.remoteJid!, { text: commandResponse })
+      if (sock) {
+        await sock.sendMessage(msg.key.remoteJid!, { text: commandResponse })
+        console.log(`[WA] Sent command response to ${phone}`)
+      }
       return
     }
 
