@@ -60,18 +60,18 @@ export async function startWhatsApp() {
       const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode
       console.log(`[WA] Closed. Code: ${statusCode}`)
 
-      // 440 = session replaced by another device - must clear auth
-      if (statusCode === 440) {
-        console.log('[WA] Session replaced. Clear auth and start fresh.')
-        connectionStatus = 'disconnected'
+      // 440 or 401 = auth invalid/session replaced - clear auth, show QR
+      if (statusCode === 440 || statusCode === 401 || statusCode === DisconnectReason.loggedOut) {
+        console.log('[WA] Auth invalid. Clearing and showing QR...')
+        connectionStatus = 'connecting'
         qrCode = null
         clearAuth()
+        // Restart to get fresh QR
+        setTimeout(() => startWhatsApp(), 1000)
         return
       }
 
-      // 515 = restart required after pairing - this is NORMAL, just reconnect
-      // LoggedOut = user logged out
-      // Other codes = error, try reconnect
+      // 515 = restart required after pairing - just reconnect
       connectionStatus = 'disconnected'
       qrCode = null
       setTimeout(() => startWhatsApp(), 2000)
