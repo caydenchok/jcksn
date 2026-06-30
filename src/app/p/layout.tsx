@@ -21,7 +21,7 @@ const description = BRAND.description;
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title,
+  title: { absolute: title },
   description,
   applicationName: BRAND.company,
   authors: [{ name: BRAND.agent }],

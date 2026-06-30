@@ -8,36 +8,41 @@ import { v4 as uuid } from 'uuid'
 const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads')
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url)
-  const type = searchParams.get('type')
-  const status = searchParams.get('status')
-  const search = searchParams.get('search')
-  const id = searchParams.get('id')
+  try {
+    const { searchParams } = new URL(request.url)
+    const type = searchParams.get('type')
+    const status = searchParams.get('status')
+    const search = searchParams.get('search')
+    const id = searchParams.get('id')
 
-  if (id) {
-    const property = await prisma.property.findUnique({ where: { id: parseInt(id) } })
-    if (!property) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-    return NextResponse.json(property)
+    if (id) {
+      const property = await prisma.property.findUnique({ where: { id: parseInt(id) } })
+      if (!property) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+      return NextResponse.json(property)
+    }
+
+    const where: any = {}
+
+    if (type) where.propertyType = type
+    if (status) where.status = status
+    if (search) {
+      where.OR = [
+        { title: { contains: search } },
+        { location: { contains: search } },
+        { description: { contains: search } },
+      ]
+    }
+
+    const properties = await prisma.property.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+    })
+
+    return NextResponse.json(properties)
+  } catch (error: any) {
+    console.error('Properties GET error:', error)
+    return NextResponse.json([], { status: 200 })
   }
-
-  const where: any = {}
-
-  if (type) where.propertyType = type
-  if (status) where.status = status
-  if (search) {
-    where.OR = [
-      { title: { contains: search } },
-      { location: { contains: search } },
-      { description: { contains: search } },
-    ]
-  }
-
-  const properties = await prisma.property.findMany({
-    where,
-    orderBy: { createdAt: 'desc' },
-  })
-
-  return NextResponse.json(properties)
 }
 
 export async function POST(request: Request) {

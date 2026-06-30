@@ -2,8 +2,13 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 
 export async function GET() {
-  const profile = await prisma.agentProfile.findFirst()
-  return NextResponse.json(profile || null)
+  try {
+    const profile = await prisma.agentProfile.findFirst()
+    return NextResponse.json(profile || null)
+  } catch (error: any) {
+    console.error('Agent GET error:', error)
+    return NextResponse.json(null, { status: 200 })
+  }
 }
 
 export async function POST(request: Request) {
