@@ -63,17 +63,28 @@ export async function startWhatsApp() {
 
     if (connection === 'close') {
       const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode
-      const shouldReconnect = statusCode !== DisconnectReason.loggedOut && statusCode !== 440
+      // 440 = session replaced, 515 = restart required after pairing (normal)
+      const isNormalClose = statusCode === 440 || statusCode === 515 || statusCode === DisconnectReason.loggedOut
 
-      console.log(`[WA] Connection closed. Code: ${statusCode}, Reconnect: ${shouldReconnect}`)
-      connectionStatus = 'disconnected'
-      qrCode = null
+      console.log(`[WA] Connection closed. Code: ${statusCode}`)
 
       if (statusCode === 440 || statusCode === DisconnectReason.loggedOut) {
         console.log('[WA] Session replaced or logged out. Clearing auth...')
+        connectionStatus = 'disconnected'
+        qrCode = null
         clearAuth()
-      } else if (shouldReconnect) {
-        setTimeout(() => startWhatsApp(), 5000)
+      } else if (statusCode === 515) {
+        // Restart required after pairing - this is normal
+        console.log('[WA] Restart required after pairing, reconnecting...')
+        connectionStatus = 'connecting'
+        setTimeout(() => startWhatsApp(), 3000)
+      } else {
+        connectionStatus = 'disconnected'
+        qrCode = null
+        // Only reconnect on actual errors, not normal closures
+        if (statusCode && statusCode !== DisconnectReason.connectionClosed) {
+          setTimeout(() => startWhatsApp(), 5000)
+        }
       }
     } else if (connection === 'open') {
       connectionStatus = 'connected'
@@ -86,7 +97,11 @@ export async function startWhatsApp() {
 
   sock.ev.on('messages.upsert', async ({ messages }) => {
     for (const msg of messages) {
-      if (!msg.key.fromMe && msg.key.remoteJid?.endsWith('@s.whatsapp.net')) {
+      const fromMe = msg.key.fromMe
+      const jid = msg.key.remoteJid
+      const isPersonal = jid?.endsWith('@s.whatsapp.net')
+      console.log(`[WA] Message received - fromMe: ${fromMe}, jid: ${jid}, isPersonal: ${isPersonal}`)
+      if (!fromMe && isPersonal) {
         await processMessage(msg)
       }
     }

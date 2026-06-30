@@ -52,9 +52,14 @@ export default function WhatsAppPage() {
 
   useEffect(() => {
     fetchStatus()
-    const interval = setInterval(fetchStatus, 2000)
+    // Only poll if not connected
+    const interval = setInterval(() => {
+      if (status.status !== 'connected') {
+        fetchStatus()
+      }
+    }, 3000)
     return () => clearInterval(interval)
-  }, [])
+  }, [status.status])
 
   async function fetchStatus() {
     try {
