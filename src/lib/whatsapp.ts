@@ -20,7 +20,21 @@ export function getConnectionStatus() {
   return { status: connectionStatus, qr: qrCode }
 }
 
+function clearAuth() {
+  try {
+    if (fs.existsSync(AUTH_DIR)) {
+      const files = fs.readdirSync(AUTH_DIR)
+      for (const file of files) {
+        fs.unlinkSync(path.join(AUTH_DIR, file))
+      }
+    }
+  } catch {}
+}
+
 export async function startWhatsApp() {
+  // Clear old auth to force fresh QR scan each time
+  clearAuth()
+
   if (!fs.existsSync(AUTH_DIR)) {
     fs.mkdirSync(AUTH_DIR, { recursive: true })
   }
@@ -31,8 +45,11 @@ export async function startWhatsApp() {
   sock = makeWASocket({
     version,
     auth: state,
-    printQRInTerminal: true,
-    browser: ['WhatsApp JCKSN', 'Chrome', '1.0.0'],
+    printQRInTerminal: false,
+    browser: ['JCKSN WhatsApp', 'Chrome', '3.0'],
+    connectTimeoutMs: 60000,
+    keepAliveIntervalMs: 30000,
+    markOnlineOnConnect: true,
   })
 
   sock.ev.on('connection.update', (update) => {
@@ -41,21 +58,27 @@ export async function startWhatsApp() {
     if (qr) {
       qrCode = qr
       connectionStatus = 'connecting'
+      console.log('[WA] QR code received, ready to scan')
     }
 
     if (connection === 'close') {
-      const shouldReconnect = (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut
-      console.log('Connection closed:', lastDisconnect?.error, 'Reconnecting:', shouldReconnect)
+      const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode
+      const shouldReconnect = statusCode !== DisconnectReason.loggedOut && statusCode !== 440
+
+      console.log(`[WA] Connection closed. Code: ${statusCode}, Reconnect: ${shouldReconnect}`)
       connectionStatus = 'disconnected'
       qrCode = null
 
-      if (shouldReconnect) {
-        setTimeout(() => startWhatsApp(), 3000)
+      if (statusCode === 440 || statusCode === DisconnectReason.loggedOut) {
+        console.log('[WA] Session replaced or logged out. Clearing auth...')
+        clearAuth()
+      } else if (shouldReconnect) {
+        setTimeout(() => startWhatsApp(), 5000)
       }
     } else if (connection === 'open') {
       connectionStatus = 'connected'
       qrCode = null
-      console.log('WhatsApp connected!')
+      console.log('[WA] WhatsApp connected successfully!')
     }
   })
 
@@ -74,10 +97,12 @@ async function processMessage(msg: any) {
   try {
     const phone = msg.key.remoteJid!.replace('@s.whatsapp.net', '')
     const content = getMessageContent(msg)
+    console.log(`[MSG] From: ${phone}, Content: ${content}`)
     if (!content) return
 
     // Check for commands first
     const commandResponse = await handleCommand(phone, content)
+    console.log(`[CMD] Command response: ${commandResponse ? 'YES' : 'NO'}`)
     if (commandResponse) {
       await prisma.conversation.upsert({
         where: { phone },
@@ -190,9 +215,11 @@ function getMessageContent(msg: any): string | null {
 
 async function handleCommand(phone: string, content: string): Promise<string | null> {
   const cmd = content.toLowerCase().trim()
+  console.log(`[CMD] Checking command: "${cmd}"`)
 
   // /property or /list - show all properties
   if (cmd === '/property' || cmd === '/list' || cmd === '/properties') {
+    console.log('[CMD] Matched /property command')
     const properties = await prisma.property.findMany({
       where: { status: 'available' },
       take: 10,
@@ -217,6 +244,7 @@ async function handleCommand(phone: string, content: string): Promise<string | n
 
   // /help - show available commands
   if (cmd === '/help' || cmd === 'help') {
+    console.log('[CMD] Matched /help command')
     return `📋 *Available Commands*
 
 /property - View all available properties
@@ -245,6 +273,7 @@ ${agent.tagline}`
   }
 
   // Not a command
+  console.log('[CMD] No command matched, returning null')
   return null
 }
 
@@ -263,19 +292,6 @@ export async function disconnectWhatsApp() {
   }
   qrCode = null
   connectionStatus = 'disconnected'
-
-  // Clear auth files
-  try {
-    const fs = require('fs')
-    const path = require('path')
-    const authDir = path.join(process.cwd(), 'whatsapp-auth')
-    if (fs.existsSync(authDir)) {
-      const files = fs.readdirSync(authDir)
-      for (const file of files) {
-        fs.unlinkSync(path.join(authDir, file))
-      }
-    }
-  } catch {}
-
-  console.log('WhatsApp disconnected')
+  clearAuth()
+  console.log('[WA] WhatsApp disconnected')
 }
