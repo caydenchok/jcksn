@@ -23,12 +23,12 @@ export function getConnectionStatus() {
 function clearAuth() {
   try {
     if (fs.existsSync(AUTH_DIR)) {
-      const files = fs.readdirSync(AUTH_DIR)
-      for (const file of files) {
-        fs.unlinkSync(path.join(AUTH_DIR, file))
-      }
+      fs.rmSync(AUTH_DIR, { recursive: true, force: true })
+      console.log('[WA] Auth directory cleared')
     }
-  } catch {}
+  } catch (e) {
+    console.error('[WA] Error clearing auth:', e)
+  }
 }
 
 export async function startWhatsApp() {
