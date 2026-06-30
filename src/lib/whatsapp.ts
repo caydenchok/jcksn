@@ -221,22 +221,32 @@ function getMessageContent(msg: any): string | null {
 
 async function handleCommand(phone: string, content: string): Promise<string | null> {
   const cmd = content.toLowerCase().trim()
-  console.log(`[CMD] Checking command: "${cmd}"`)
+  const agent = await prisma.agentProfile.findFirst()
+  const agentName = agent?.name || 'Property Agent'
+
+  // Greetings - show welcome + commands
+  const greetings = ['hi', 'hello', 'hey', 'hai', 'helo', 'sup', 'yo', 'hiya', 'good morning', 'good afternoon', 'good evening', 'pagi', 'selamat', 'hey there']
+  if (greetings.some(g => cmd.startsWith(g) || cmd === g)) {
+    const welcomeMsg = agent?.welcomeMsg || `Hi! I'm ${agentName}, your property assistant. How can I help you today?`
+    return `${welcomeMsg}\n\n📋 *Type these commands:*\n\n/property - View all properties\n/search - Search properties\n/rent - View rental properties\n/buy - View properties for sale\n/price - View by price range\n/agent - Agent info\n/help - All commands`
+  }
+
+  // /help - show all commands
+  if (cmd === '/help' || cmd === 'help' || cmd === '?') {
+    return `📋 *All Available Commands*\n\n🏠 *Property Commands:*\n/property - View all properties\n/search - Search by keyword\n/rent - Rental properties only\n/buy - Buy properties only\n/price - View by price range\n/new - Latest listings\n\n👤 *Agent Commands:*\n/agent - Agent info & contact\n/contact - Contact details\n\n💬 *General:*\n/help - This message\n\nOr just chat naturally!\nExample: "condo in KL under RM500k"`
+  }
 
   // /property or /list - show all properties
   if (cmd === '/property' || cmd === '/list' || cmd === '/properties') {
-    console.log('[CMD] Matched /property command')
     const properties = await prisma.property.findMany({
       where: { status: 'available' },
       take: 10,
       orderBy: { createdAt: 'desc' },
     })
 
-    if (properties.length === 0) {
-      return 'No properties available at the moment. Check back soon!'
-    }
+    if (properties.length === 0) return 'No properties available at the moment. Check back soon!'
 
-    let response = '🏠 *Available Properties*\n\n'
+    let response = '🏠 *All Available Properties*\n\n'
     properties.forEach((p, i) => {
       response += `${i + 1}. *${p.title}*\n`
       response += `   📍 ${p.location}\n`
@@ -244,42 +254,101 @@ async function handleCommand(phone: string, content: string): Promise<string | n
       response += `   🛏️ ${p.bedrooms}BR/${p.bathrooms}BA | ${p.size}sqft\n`
       response += `   📋 ${p.propertyType} | ${p.tenure}\n\n`
     })
-    response += 'Reply with property number for details, or "help" for commands.'
+    response += '💡 Reply with number for details, or /help for commands.'
     return response
   }
 
-  // /help - show available commands
-  if (cmd === '/help' || cmd === 'help') {
-    console.log('[CMD] Matched /help command')
-    return `📋 *Available Commands*
+  // /rent - rental properties
+  if (cmd === '/rent' || cmd === '/sewa') {
+    const properties = await prisma.property.findMany({
+      where: { status: 'available', propertyCategory: 'rent' },
+      take: 10,
+      orderBy: { createdAt: 'desc' },
+    })
+    if (properties.length === 0) return 'No rental properties available at the moment.'
 
-/property - View all available properties
-/help - Show this help message
-
-Or just chat naturally! I can help you:
-• Find properties by location, budget, or type
-• Book property viewings
-• Get property details
-• Answer your questions
-
-Try: "I want condo in KL under RM500k"`
+    let response = '🏠 *Rental Properties*\n\n'
+    properties.forEach((p, i) => {
+      response += `${i + 1}. *${p.title}*\n   📍 ${p.location} | 💰 RM ${p.price.toLocaleString()}/mo\n   🛏️ ${p.bedrooms}BR/${p.bathrooms}BA | ${p.size}sqft\n\n`
+    })
+    return response
   }
 
-  // /contact - show agent contact
-  if (cmd === '/contact' || cmd === 'contact') {
-    const agent = await prisma.agentProfile.findFirst()
+  // /buy - buy properties
+  if (cmd === '/buy' || cmd === '/beli') {
+    const properties = await prisma.property.findMany({
+      where: { status: 'available', propertyCategory: 'buy' },
+      take: 10,
+      orderBy: { createdAt: 'desc' },
+    })
+    if (properties.length === 0) return 'No properties for sale at the moment.'
+
+    let response = '🏠 *Properties For Sale*\n\n'
+    properties.forEach((p, i) => {
+      response += `${i + 1}. *${p.title}*\n   📍 ${p.location} | 💰 RM ${p.price.toLocaleString()}\n   🛏️ ${p.bedrooms}BR/${p.bathrooms}BA | ${p.size}sqft\n\n`
+    })
+    return response
+  }
+
+  // /new - latest listings
+  if (cmd === '/new' || cmd === '/baru') {
+    const properties = await prisma.property.findMany({
+      where: { status: 'available' },
+      take: 5,
+      orderBy: { createdAt: 'desc' },
+    })
+    if (properties.length === 0) return 'No new listings yet.'
+
+    let response = '🆕 *Latest Listings*\n\n'
+    properties.forEach((p, i) => {
+      response += `${i + 1}. *${p.title}*\n   📍 ${p.location} | 💰 RM ${p.price.toLocaleString()}\n   📅 ${new Date(p.createdAt).toLocaleDateString()}\n\n`
+    })
+    return response
+  }
+
+  // /price - view by price
+  if (cmd === '/price' || cmd === '/harga') {
+    const properties = await prisma.property.findMany({
+      where: { status: 'available' },
+      take: 10,
+      orderBy: { price: 'asc' },
+    })
+    if (properties.length === 0) return 'No properties available.'
+
+    let response = '💰 *Properties by Price*\n\n'
+    properties.forEach((p, i) => {
+      response += `${i + 1}. *RM ${p.price.toLocaleString()}* - ${p.title}\n   📍 ${p.location} | 🛏️ ${p.bedrooms}BR\n\n`
+    })
+    return response
+  }
+
+  // /agent - agent info
+  if (cmd === '/agent' || cmd === '/profile') {
     if (agent) {
       return `👤 *${agent.name}*
 ${agent.company ? `🏢 ${agent.company}\n` : ''}
-📱 ${agent.phone}
+${agent.phone ? `📱 ${agent.phone}\n` : ''}
 ${agent.email ? `📧 ${agent.email}\n` : ''}
-${agent.tagline}`
+${agent.tagline ? `\n💬 ${agent.tagline}` : ''}
+${agent.specialities ? `\n🏆 Specialities: ${agent.specialities}` : ''}`
+    }
+    return 'Agent information not available.'
+  }
+
+  // /contact - contact details
+  if (cmd === '/contact' || cmd === '/hubungi') {
+    if (agent) {
+      return `📞 *Contact ${agent.name}*\n\n📱 Phone: ${agent.phone || 'Not available'}\n${agent.email ? `📧 Email: ${agent.email}\n` : ''}${agent.company ? `🏢 ${agent.company}\n` : ''}\n💡 Or just type your question below!`
     }
     return 'Contact information not available.'
   }
 
+  // /search - search properties
+  if (cmd === '/search' || cmd === '/cari') {
+    return '🔍 *Search Properties*\n\nJust type what you\'re looking for:\n• "condo in KL"\n• "3 bedroom house"\n• "semi-d under RM1M"\n• "rent in Bangsar"\n\nExample: "I want condo in KLCC under RM800k"'
+  }
+
   // Not a command
-  console.log('[CMD] No command matched, returning null')
   return null
 }
 
