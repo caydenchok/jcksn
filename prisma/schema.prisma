@@ -8,28 +8,30 @@ datasource db {
 }
 
 model Property {
-  id          Int      @id @default(autoincrement())
-  title       String
-  description String
-  price       Float
-  propertyType String
+  id              Int      @id @default(autoincrement())
+  title           String
+  description     String
+  price           Float
+  propertyType    String
   propertyCategory String @default("residential")
-  tenure      String   @default("freehold")
-  furnishing  String   @default("unfurnished")
-  lotType     String   @default("intermediate")
-  status      String   @default("available")
-  location    String
-  state       String   @default("")
-  size        String
-  landSize    String   @default("")
-  bedrooms    Int
-  bathrooms   Int
-  carParks    Int      @default(0)
-  features    String   @default("[]")
-  images      String   @default("[]")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  bookings    Booking[]
+  purpose         String   @default("Buy")
+  tenure          String
+  furnishing      String
+  lotType         String
+  status          String
+  location        String
+  state           String
+  size            String
+  landSize        String
+  bedrooms        Int
+  bathrooms       Int
+  carParks        Int
+  features        String
+  images          String
+  nearbyFacilities String @default("[]")
+  bookings        Booking[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 model AgentProfile {
@@ -62,6 +64,8 @@ model Lead {
   requirement String   @default("")
   status      String   @default("new")
   notes       String   @default("")
+  profileUrl  String   @default("")
+  nameVerified Boolean @default(false)
   matchedPropertyId Int?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -81,14 +85,24 @@ model Booking {
   createdAt     DateTime @default(now())
 }
 
+model Setting {
+  id    Int    @id @default(autoincrement())
+  key   String @unique
+  value String
+}
+
 model Conversation {
-  id          Int      @id @default(autoincrement())
-  phone       String   @unique
-  name        String?
-  lastMessage String
-  lastActive  DateTime @default(now())
-  createdAt   DateTime @default(now())
-  messages    ChatMessage[]
+  id            Int       @id @default(autoincrement())
+  phone         String    @unique
+  name          String?
+  lastMessage   String
+  lastActive    DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  needsHandoff  Boolean   @default(false)
+  handoffNote   String?
+  lastFollowUp  DateTime?
+  followUpCount Int       @default(0)
+  messages      ChatMessage[]
 }
 
 model ChatMessage {

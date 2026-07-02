@@ -65,15 +65,14 @@ function QRDisplay({ qrData }: { qrData: string }) {
 }
 
 export default function WhatsAppPage() {
-  const [status, setStatus] = useState<WhatsAppStatus>({
-    status: 'disconnected',
-    qr: null,
-  })
+  const [activeTab, setActiveTab] = useState<'connection' | 'settings'>('connection')
+  const [status, setStatus] = useState<WhatsAppStatus>({ status: 'disconnected', qr: null })
   const [isConnecting, setIsConnecting] = useState(false)
   const [config, setConfig] = useState<BotConfig>({
     welcomeMessage: '',
-    enabledCommands: ['talk', 'booking', 'property', 'rent', 'buy', 'new', 'price', 'search', 'agent', 'contact', 'help'],
+    enabledCommands: ALL_COMMANDS.map(c => c.id),
   })
+  const [saved, setSaved] = useState<'idle' | 'success' | 'error'>('idle')
 
   useEffect(() => {
     fetchStatus()
@@ -87,12 +86,9 @@ export default function WhatsAppPage() {
       const res = await fetch('/api/whatsapp')
       const data = await res.json()
       setStatus(data)
-      if (data.status === 'connected') {
-        setIsConnecting(false)
-      }
+      if (data.status === 'connected') setIsConnecting(false)
       return data
-    } catch (error) {
-      console.error('Failed to fetch status:', error)
+    } catch {
       return { status: 'disconnected', qr: null }
     }
   }
@@ -107,25 +103,29 @@ export default function WhatsAppPage() {
           enabledCommands: data.enabledCommands ? JSON.parse(data.enabledCommands) : ALL_COMMANDS.map(c => c.id),
         })
       }
-    } catch (error) {
-      console.error('Failed to fetch config:', error)
-    }
+    } catch {}
   }
 
   async function saveConfig() {
     try {
-      await fetch('/api/agent', {
+      const res = await fetch('/api/agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: 'Agent',
-          phone: '',
           welcomeMsg: config.welcomeMessage,
           enabledCommands: JSON.stringify(config.enabledCommands),
         }),
       })
-    } catch (error) {
-      console.error('Failed to save config:', error)
+      if (res.ok) {
+        setSaved('success')
+        setTimeout(() => setSaved('idle'), 3000)
+      } else {
+        setSaved('error')
+        setTimeout(() => setSaved('idle'), 3000)
+      }
+    } catch {
+      setSaved('error')
+      setTimeout(() => setSaved('idle'), 3000)
     }
   }
 
@@ -146,8 +146,7 @@ export default function WhatsAppPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'start' }),
       })
-    } catch (error) {
-      console.error('Failed to connect:', error)
+    } catch {
       setIsConnecting(false)
     }
   }
@@ -160,178 +159,223 @@ export default function WhatsAppPage() {
         body: JSON.stringify({ action: 'disconnect' }),
       })
       setStatus({ status: 'disconnected', qr: null })
-    } catch (error) {
-      console.error('Failed to disconnect:', error)
-    }
+    } catch {}
   }
 
   return (
     <div className="min-h-screen bg-[#080808]">
-      <div className="px-10 pt-10 pb-10">
-        <div className="mb-10">
-          <h1 className="text-5xl font-bold tracking-tight text-white">WhatsApp</h1>
-          <p className="text-zinc-500 mt-2 text-base">Connect your WhatsApp to start receiving messages</p>
+      <div className="px-4 sm:px-6 lg:px-10 pt-10 pb-10">
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+          <div>
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white">WhatsApp</h1>
+            <p className="text-zinc-500 mt-2 text-base">Connect and configure your WhatsApp bot</p>
+          </div>
+          {activeTab === 'settings' && (
+            <button
+              onClick={saveConfig}
+              disabled={saved === 'success'}
+              className={`px-6 py-3 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 ${
+                saved === 'success'
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/20'
+                  : saved === 'error'
+                  ? 'bg-red-500/20 text-red-400 border border-red-500/20 hover:bg-red-500/30'
+                  : 'bg-white hover:bg-zinc-200 text-black'
+              }`}
+            >
+              {saved === 'success' ? (
+                <>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                  Saved!
+                </>
+              ) : saved === 'error' ? (
+                <>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Failed — Retry
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                  Save Settings
+                </>
+              )}
+            </button>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Status Card */}
-          <Card className="bg-[#0c0c0c] border-white/[0.04]">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg flex items-center gap-3">
-                <div className={`w-3 h-3 rounded-full ${
-                  status.status === 'connected' ? 'bg-emerald-500' :
-                  isConnecting ? 'bg-amber-500 animate-pulse' :
-                  'bg-zinc-600'
-                }`} />
-                Connection Status
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center gap-4">
-                <div className={`px-5 py-2.5 rounded-xl font-medium text-sm ${
+        {/* Tab Bar */}
+        <div className="flex gap-1 p-1 bg-white/5 rounded-xl mb-8 max-w-md">
+          <button
+            onClick={() => setActiveTab('connection')}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+              activeTab === 'connection'
+                ? 'bg-white/10 text-white shadow-sm'
+                : 'text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+            </svg>
+            Connection
+          </button>
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+              activeTab === 'settings'
+                ? 'bg-white/10 text-white shadow-sm'
+                : 'text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Bot Settings
+          </button>
+        </div>
+
+        {/* Connection Tab */}
+        {activeTab === 'connection' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="bg-[#0c0c0c] border-white/[0.04]">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg flex items-center gap-3">
+                  <div className={`w-3 h-3 rounded-full ${
+                    status.status === 'connected' ? 'bg-emerald-500' :
+                    isConnecting ? 'bg-amber-500 animate-pulse' :
+                    'bg-zinc-600'
+                  }`} />
+                  Connection Status
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className={`px-5 py-2.5 rounded-xl font-medium text-sm w-fit ${
                   status.status === 'connected' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/20' :
                   isConnecting ? 'bg-amber-500/20 text-amber-400 border border-amber-500/20' :
                   'bg-white/5 text-zinc-500 border border-white/5'
                 }`}>
                   {status.status === 'connected' ? 'Connected' :
-                   isConnecting ? 'Connecting...' :
-                   'Disconnected'}
+                   isConnecting ? 'Connecting...' : 'Disconnected'}
                 </div>
-              </div>
 
-              <div className="flex gap-3">
-                {status.status === 'connected' ? (
-                  <Button
-                    onClick={disconnectWhatsApp}
-                    className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 font-semibold h-11 rounded-xl border border-red-500/20"
-                  >
-                    Disconnect
-                  </Button>
-                ) : (
-                  <Button
-                    onClick={connectWhatsApp}
-                    disabled={isConnecting}
-                    className="flex-1 bg-white hover:bg-zinc-200 text-black font-semibold h-11 rounded-xl"
-                  >
-                    {isConnecting ? 'Connecting...' : 'Connect WhatsApp'}
-                  </Button>
-                )}
-              </div>
-
-              <div className="p-4 rounded-xl bg-white/5 text-sm text-zinc-400 border border-white/5">
-                <p className="font-medium text-white mb-3">How to connect:</p>
-                <ol className="list-decimal list-inside space-y-2">
-                  <li>Click &quot;Connect WhatsApp&quot; button above</li>
-                  <li>Open WhatsApp on your phone</li>
-                  <li>Go to Settings → Linked Devices</li>
-                  <li>Scan the QR code shown here</li>
-                </ol>
-              </div>
-
-              <div className="p-4 rounded-xl bg-white/5 text-sm text-zinc-400 border border-white/5">
-                <p className="font-medium text-white mb-3">Available Commands:</p>
-                <div className="space-y-1.5">
-                  <p><code className="text-emerald-400 bg-white/5 px-1.5 py-0.5 rounded">/talk</code> - Talk to agent directly</p>
-                  <p><code className="text-emerald-400 bg-white/5 px-1.5 py-0.5 rounded">/booking</code> - Book a viewing</p>
-                  <p><code className="text-emerald-400 bg-white/5 px-1.5 py-0.5 rounded">/property</code> - View all properties</p>
-                  <p><code className="text-emerald-400 bg-white/5 px-1.5 py-0.5 rounded">/rent</code> - Rental properties</p>
-                  <p><code className="text-emerald-400 bg-white/5 px-1.5 py-0.5 rounded">/buy</code> - Properties for sale</p>
-                  <p><code className="text-emerald-400 bg-white/5 px-1.5 py-0.5 rounded">/new</code> - Latest listings</p>
-                  <p><code className="text-emerald-400 bg-white/5 px-1.5 py-0.5 rounded">/price</code> - View by price</p>
-                  <p><code className="text-emerald-400 bg-white/5 px-1.5 py-0.5 rounded">/search</code> - Search tips</p>
-                  <p><code className="text-emerald-400 bg-white/5 px-1.5 py-0.5 rounded">/agent</code> - Agent info</p>
-                  <p><code className="text-emerald-400 bg-white/5 px-1.5 py-0.5 rounded">/contact</code> - Contact details</p>
-                  <p><code className="text-emerald-400 bg-white/5 px-1.5 py-0.5 rounded">/help</code> - Show all commands</p>
+                <div className="flex gap-3">
+                  {status.status === 'connected' ? (
+                    <Button onClick={disconnectWhatsApp} className="flex-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 font-semibold h-11 rounded-xl border border-red-500/20">
+                      Disconnect
+                    </Button>
+                  ) : (
+                    <Button onClick={connectWhatsApp} disabled={isConnecting} className="flex-1 bg-white hover:bg-zinc-200 text-black font-semibold h-11 rounded-xl">
+                      {isConnecting ? 'Connecting...' : 'Connect WhatsApp'}
+                    </Button>
+                  )}
                 </div>
-              </div>
-            </CardContent>
-          </Card>
 
-          {/* QR Code Card */}
-          <Card className="bg-[#0c0c0c] border-white/[0.04]">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg">QR Code</CardTitle>
-            </CardHeader>
-            <CardContent className="flex items-center justify-center min-h-[350px]">
-              {status.status === 'connected' ? (
-                <div className="text-center">
-                  <div className="w-20 h-20 rounded-2xl bg-emerald-500/20 flex items-center justify-center mx-auto mb-4 border border-emerald-500/20">
-                    <svg className="w-10 h-10 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
+                <div className="p-4 rounded-xl bg-white/5 text-sm text-zinc-400 border border-white/5">
+                  <p className="font-medium text-white mb-3">How to connect:</p>
+                  <ol className="list-decimal list-inside space-y-2">
+                    <li>Click &quot;Connect WhatsApp&quot; button above</li>
+                    <li>Open WhatsApp on your phone</li>
+                    <li>Go to Settings → Linked Devices</li>
+                    <li>Scan the QR code shown here</li>
+                  </ol>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-[#0c0c0c] border-white/[0.04]">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">QR Code</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-center min-h-[320px]">
+                  {status.qr ? (
+                    <QRDisplay qrData={status.qr} />
+                  ) : (
+                    <div className="text-center text-zinc-500 space-y-3">
+                      <svg className="w-12 h-12 mx-auto opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5h.75v.75h-.75v-.75zM13.5 19.5h.75v.75h-.75v-.75zM19.5 13.5h.75v.75h-.75v-.75zM19.5 19.5h.75v.75h-.75v-.75zM16.5 16.5h.75v.75h-.75v-.75z" />
+                      </svg>
+                      <p>Click &quot;Connect WhatsApp&quot; to generate QR code</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Bot Settings Tab */}
+        {activeTab === 'settings' && (
+          <div className="space-y-6">
+            {/* Welcome Message */}
+            <Card className="bg-[#0c0c0c] border-white/[0.04]">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">Welcome Message</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label className="text-zinc-400 text-xs font-medium uppercase tracking-wider">First Response</Label>
+                  <p className="text-xs text-zinc-600 mt-1 mb-3">This is what the bot says when a customer says hi or hello</p>
+                  <textarea
+                    value={config.welcomeMessage}
+                    onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setConfig(prev => ({ ...prev, welcomeMessage: e.target.value }))}
+                    placeholder="Hi! I'm [Your Name], your property assistant. How can I help you today?"
+                    className="w-full h-28 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-zinc-600 text-sm focus:outline-none focus:ring-2 focus:ring-white/20 transition-all"
+                  />
+                </div>
+                <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-sm text-emerald-300">
+                  Preview: {config.welcomeMessage || 'Hi! I\'m [Your Name], your property assistant. How can I help you today?'}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Command Toggles */}
+            <Card className="bg-[#0c0c0c] border-white/[0.04]">
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg">Enabled Commands</CardTitle>
+                    <p className="text-xs text-zinc-500 mt-1">Toggle which commands customers can use</p>
                   </div>
-                  <p className="text-white font-semibold text-lg">WhatsApp Connected!</p>
-                  <p className="text-sm text-zinc-500 mt-2">Your AI assistant is ready to reply</p>
+                  <span className="text-sm text-zinc-500">{config.enabledCommands.length} active</span>
                 </div>
-              ) : isConnecting && status.qr ? (
-                <div className="text-center">
-                  <QRDisplay qrData={status.qr} />
-                  <p className="text-sm text-zinc-500 mt-4">Scan this QR code with WhatsApp</p>
-                </div>
-              ) : isConnecting && !status.qr ? (
-                <div className="text-center">
-                  <div className="w-12 h-12 border-2 border-zinc-700 border-t-white rounded-full animate-spin mx-auto mb-4" />
-                  <p className="text-zinc-400">Generating QR code...</p>
-                </div>
-              ) : (
-                <div className="text-center text-zinc-500">
-                  <svg className="w-20 h-20 mx-auto mb-4 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                  </svg>
-                  <p>Click &quot;Connect WhatsApp&quot; to generate QR code</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Bot Settings */}
-        <div className="mt-6">
-          <Card className="bg-[#0c0c0c] border-white/[0.04]">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-lg">Bot Settings</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Welcome Message */}
-              <div>
-                <Label className="text-zinc-400 text-xs font-medium uppercase tracking-wider">First Response / Welcome Message</Label>
-                <p className="text-xs text-zinc-600 mt-1 mb-2">This is what the bot says when a customer says hi or hello</p>
-                <textarea
-                  value={config.welcomeMessage}
-                  onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setConfig(prev => ({ ...prev, welcomeMessage: e.target.value }))}
-                  placeholder="Hi! I'm [Your Name], your property assistant. How can I help you today?"
-                  className="w-full h-24 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-zinc-600 text-sm focus:outline-none focus:ring-2 focus:ring-white/20 transition-all"
-                />
-              </div>
-
-              {/* Command Toggles */}
-              <div>
-                <Label className="text-zinc-400 text-xs font-medium uppercase tracking-wider">Enabled Commands</Label>
-                <p className="text-xs text-zinc-600 mt-1 mb-3">Toggle which commands are available to customers</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {ALL_COMMANDS.map(cmd => (
                     <button
                       key={cmd.id}
                       onClick={() => toggleCommand(cmd.id)}
-                      className={`p-3 rounded-xl border text-left transition-all ${
+                      className={`p-4 rounded-xl border text-left transition-all ${
                         config.enabledCommands.includes(cmd.id)
                           ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                          : 'bg-white/5 border-white/5 text-zinc-500'
+                          : 'bg-white/5 border-white/5 text-zinc-500 hover:bg-white/[0.07]'
                       }`}
                     >
-                      <p className="font-medium text-sm">{cmd.name}</p>
-                      <p className="text-xs opacity-70 mt-0.5">{cmd.desc}</p>
+                      <div className="flex items-center justify-between">
+                        <p className="font-medium text-sm">{cmd.name}</p>
+                        <div className={`w-8 h-5 rounded-full transition-all ${
+                          config.enabledCommands.includes(cmd.id) ? 'bg-emerald-500' : 'bg-zinc-700'
+                        }`}>
+                          <div className={`w-4 h-4 rounded-full bg-white mt-0.5 transition-all ${
+                            config.enabledCommands.includes(cmd.id) ? 'ml-3.5' : 'ml-0.5'
+                          }`} />
+                        </div>
+                      </div>
+                      <p className="text-xs opacity-70 mt-1">{cmd.desc}</p>
                     </button>
                   ))}
                 </div>
-              </div>
-
-              <Button onClick={saveConfig} className="w-full bg-white hover:bg-zinc-200 text-black font-semibold h-11 rounded-xl">
-                Save Bot Settings
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   )

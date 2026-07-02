@@ -76,11 +76,11 @@ export default function ConversationsPage() {
   })
 
   return (
-    <div className="p-8 h-screen flex gap-6">
-      <div className="w-96 flex-shrink-0">
+    <div className="p-4 sm:p-6 lg:p-8 h-[calc(100vh-3.5rem)] lg:h-screen flex gap-4 lg:gap-6">
+      <div className={`w-full lg:w-96 flex-shrink-0 flex flex-col min-h-0 ${selectedConversation ? 'hidden lg:flex' : 'flex'}`}>
         <h1 className="text-3xl font-bold tracking-tight mb-6">Conversations</h1>
 
-        <Card className="bg-[#0a0a0a] border-white/5 h-[calc(100vh-180px)] overflow-hidden flex flex-col">
+        <Card className="bg-[#0a0a0a] border-white/5 flex-1 min-h-0 overflow-hidden flex flex-col">
           <CardHeader className="p-4 border-b border-white/5">
             <Input
               placeholder="Search conversations..."
@@ -130,12 +130,21 @@ export default function ConversationsPage() {
         </Card>
       </div>
 
-      <div className="flex-1">
+      <div className={`flex-1 min-w-0 ${selectedConversation ? 'block' : 'hidden lg:block'}`}>
         {selectedConversation ? (
           <Card className="bg-[#0a0a0a] border-white/5 h-full flex flex-col">
             <CardHeader className="p-4 border-b border-white/5">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
+                <button
+                  onClick={() => setSelectedConversation(null)}
+                  aria-label="Back to conversations"
+                  className="lg:hidden -ml-1 p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
+                <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
                   <span className="text-sm font-semibold">
                     {selectedConversation.name?.[0] || selectedConversation.phone.slice(-2)}
                   </span>

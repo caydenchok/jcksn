@@ -1,12 +1,13 @@
 'use client'
 
-import { useEffect, useState, ChangeEvent } from 'react'
+import { useEffect, useState, ChangeEvent, useRef } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { SABAH_LOCATIONS, DISTRICTS } from '@/lib/locations'
 
 function ImageGallery({ images, title }: { images: string[]; title: string }) {
   const [current, setCurrent] = useState(0)
@@ -80,6 +81,7 @@ interface Property {
   price: number
   propertyType: string
   propertyCategory: string
+  purpose: string
   tenure: string
   furnishing: string
   lotType: string
@@ -101,12 +103,6 @@ const PROPERTY_TYPES = [
   'Duplex', 'Penthouse', 'Flat', 'Residential Land'
 ]
 
-const STATES = [
-  'Johor', 'Kedah', 'Kelantan', 'Melaka', 'Negeri Sembilan',
-  'Pahang', 'Penang', 'Perak', 'Perlis', 'Sabah', 'Sarawak',
-  'Selangor', 'Kuala Lumpur', 'Putrajaya', 'Labuan'
-]
-
 const FURNISHING_OPTIONS = ['Unfurnished', 'Partially Furnished', 'Fully Furnished']
 const TENURE_OPTIONS = ['Freehold', 'Leasehold']
 const LOT_OPTIONS = ['Intermediate', 'Corner', 'End Lot', 'Double Storey', 'Single Storey', 'Custom']
@@ -125,6 +121,7 @@ export default function ListingsPage() {
     price: '',
     propertyType: 'Condominium',
     propertyCategory: 'Residential',
+    purpose: 'Buy',
     tenure: 'Freehold',
     furnishing: 'Unfurnished',
     lotType: 'Intermediate',
@@ -140,6 +137,7 @@ export default function ListingsPage() {
     status: 'available',
   })
   const [imageFiles, setImageFiles] = useState<FileList | null>(null)
+  const [existingImages, setExistingImages] = useState<string[]>([])
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 300)
@@ -167,17 +165,29 @@ export default function ListingsPage() {
       const lotTypeToSend = formData.lotType === 'Custom' ? formData.customLotType : formData.lotType
 
       if (editingProperty) {
+        const formDataToSend = new FormData()
+        formDataToSend.append('id', String(editingProperty.id))
+        Object.entries(formData).forEach(([key, value]) => {
+          if (key === 'lotType') {
+            formDataToSend.append(key, lotTypeToSend)
+          } else if (key !== 'customLotType') {
+            formDataToSend.append(key, value)
+          }
+        })
+        formDataToSend.append('bedrooms', String(parseInt(formData.bedrooms)))
+        formDataToSend.append('bathrooms', String(parseInt(formData.bathrooms)))
+        formDataToSend.append('carParks', String(parseInt(formData.carParks)))
+        formDataToSend.append('existingImages', JSON.stringify(existingImages))
+
+        if (imageFiles) {
+          for (const file of Array.from(imageFiles)) {
+            formDataToSend.append('images', file)
+          }
+        }
+
         const res = await fetch('/api/properties', {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: editingProperty.id,
-            ...formData,
-            lotType: lotTypeToSend,
-            bedrooms: parseInt(formData.bedrooms),
-            bathrooms: parseInt(formData.bathrooms),
-            carParks: parseInt(formData.carParks),
-          }),
+          body: formDataToSend,
         })
         if (!res.ok) {
           const err = await res.text()
@@ -228,7 +238,8 @@ export default function ListingsPage() {
       description: '',
       price: '',
       propertyType: 'Condominium',
-      propertyCategory: 'Residential',
+    propertyCategory: 'Residential',
+    purpose: 'Buy',
       tenure: 'Freehold',
       furnishing: 'Unfurnished',
       lotType: 'Intermediate',
@@ -255,6 +266,7 @@ export default function ListingsPage() {
       price: property.price.toString(),
       propertyType: property.propertyType,
       propertyCategory: property.propertyCategory || 'Residential',
+      purpose: property.purpose || 'buy',
       tenure: property.tenure || 'Freehold',
       furnishing: property.furnishing || 'Unfurnished',
       lotType: isCustomLot ? 'Custom' : (property.lotType || 'Intermediate'),
@@ -270,11 +282,13 @@ export default function ListingsPage() {
       status: property.status,
     })
     setImageFiles(null)
+    setExistingImages(parseImages(property.images))
     setIsDialogOpen(true)
   }
 
   function openCreate() {
     setEditingProperty(null)
+    setExistingImages([])
     resetForm()
     setIsDialogOpen(true)
   }
@@ -297,10 +311,10 @@ export default function ListingsPage() {
 
   return (
     <div className="min-h-screen bg-[#080808]">
-      <div className="px-12 pt-10 pb-0">
-        <div className="flex items-end justify-between mb-10">
+      <div className="px-4 sm:px-6 lg:px-12 pt-10 pb-0">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8 sm:mb-10">
           <div>
-            <h1 className="text-5xl font-bold tracking-tight text-white">Listings</h1>
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white">Listings</h1>
             <p className="text-zinc-500 mt-2 text-base">Manage your property portfolio</p>
           </div>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -350,6 +364,18 @@ export default function ListingsPage() {
                     </Select>
                   </div>
                   <div>
+                    <Label className="text-zinc-400 text-xs font-medium uppercase tracking-wider">Purpose</Label>
+                    <Select value={formData.purpose} onValueChange={(v) => setFormData({ ...formData, purpose: v || 'Buy' })}>
+                      <SelectTrigger className="bg-white/5 border-white/10 mt-1.5 h-11">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-[#111] border-white/10">
+                        <SelectItem value="Buy">For Sale</SelectItem>
+                        <SelectItem value="Rent">For Rent</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
                     <Label className="text-zinc-400 text-xs font-medium uppercase tracking-wider">Tenure</Label>
                     <Select value={formData.tenure} onValueChange={(v) => setFormData({ ...formData, tenure: v || 'Freehold' })}>
                       <SelectTrigger className="bg-white/5 border-white/10 mt-1.5 h-11">
@@ -363,24 +389,51 @@ export default function ListingsPage() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                  <div>
+                  <div className="relative">
                     <Label className="text-zinc-400 text-xs font-medium uppercase tracking-wider">Location *</Label>
                     <Input
                       value={formData.location}
                       onChange={(e: ChangeEvent<HTMLInputElement>) => setFormData({ ...formData, location: e.target.value })}
-                      placeholder="e.g. Mont Kiara, KLCC, Bangsar"
+                      placeholder="Search location (e.g. Damai, Likas, Penampang)"
                       className="bg-white/5 border-white/10 mt-1.5 h-11"
                       required
                     />
+                    {formData.location && formData.location.length > 0 && (
+                      <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-[#111] border border-white/10 rounded-xl shadow-xl max-h-60 overflow-y-auto">
+                        {SABAH_LOCATIONS
+                          .filter(loc => loc.name.toLowerCase().includes(formData.location.toLowerCase()) || loc.district.toLowerCase().includes(formData.location.toLowerCase()))
+                          .slice(0, 8)
+                          .map((loc, i) => (
+                            <button
+                              key={i}
+                              type="button"
+                              onClick={() => setFormData({ ...formData, location: loc.name })}
+                              className="w-full text-left px-4 py-3 hover:bg-white/10 transition-colors border-b border-white/5 last:border-0"
+                            >
+                              <p className="text-sm font-medium text-white">{loc.name}</p>
+                              <p className="text-xs text-zinc-500">{loc.district} · {loc.region} · {loc.priceRange === 'budget' ? 'Budget' : loc.priceRange === 'mid' ? 'Mid-Range' : loc.priceRange === 'premium' ? 'Premium' : 'Luxury'}</p>
+                            </button>
+                          ))
+                        }
+                        {SABAH_LOCATIONS.filter(loc => loc.name.toLowerCase().includes(formData.location.toLowerCase())).length === 0 && (
+                          <div className="px-4 py-3 text-sm text-zinc-500">
+                            <p>No match found. You can type a custom location.</p>
+                            <a href={`https://www.google.com/maps/search/${encodeURIComponent(formData.location)}`} target="_blank" rel="noopener noreferrer" className="text-[#E2A93B] hover:underline mt-1 inline-block">
+                              📍 Search on Google Maps
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div>
-                    <Label className="text-zinc-400 text-xs font-medium uppercase tracking-wider">State</Label>
-                    <Select value={formData.state} onValueChange={(v) => setFormData({ ...formData, state: v || 'Kuala Lumpur' })}>
+                    <Label className="text-zinc-400 text-xs font-medium uppercase tracking-wider">District</Label>
+                    <Select value={formData.state} onValueChange={(v) => setFormData({ ...formData, state: v || 'Kota Kinabalu' })}>
                       <SelectTrigger className="bg-white/5 border-white/10 mt-1.5 h-11">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent className="bg-[#111] border-white/10">
-                        {STATES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                        {DISTRICTS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
@@ -510,6 +563,31 @@ export default function ListingsPage() {
 
                 <div>
                   <Label className="text-zinc-400 text-xs font-medium uppercase tracking-wider">Images</Label>
+                  {existingImages.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {existingImages.map((src, idx) => (
+                        <div key={idx} className="relative w-20 h-20 rounded-lg overflow-hidden border border-white/10 group/img">
+                          <img src={src} alt="" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setExistingImages(prev => prev.filter((_, i) => i !== idx))}
+                            className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-red-500/90 text-white flex items-center justify-center text-xs opacity-0 group-hover/img:opacity-100 transition-opacity"
+                          >×</button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setExistingImages(prev => {
+                                const arr = [...prev]
+                                if (idx > 0) { [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]] }
+                                return arr
+                              })
+                            }}
+                            className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center text-[10px] opacity-0 group-hover/img:opacity-100 transition-opacity"
+                          >←</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                   <div className="mt-1.5">
                     <input
                       type="file"
@@ -539,20 +617,20 @@ export default function ListingsPage() {
           </Dialog>
         </div>
 
-        <div className="flex items-center gap-4 mb-8">
-          <div className="flex items-center gap-2.5 px-5 py-3 rounded-xl bg-white/5 border border-white/5">
-            <svg className="w-5 h-5 text-zinc-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mb-8">
+          <div className="flex items-center gap-2.5 px-5 py-3 rounded-xl bg-white/5 border border-white/5 w-full sm:w-auto">
+            <svg className="w-5 h-5 text-zinc-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
             </svg>
             <Input
               placeholder="Search by title, location..."
               value={search}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
-              className="border-0 bg-transparent p-0 h-auto text-base focus-visible:ring-0 w-72"
+              className="border-0 bg-transparent p-0 h-auto text-base focus-visible:ring-0 w-full sm:w-72"
             />
           </div>
           <Select value={filterType} onValueChange={(v) => setFilterType(v || 'all')}>
-            <SelectTrigger className="w-[160px] h-12 bg-white/5 border-white/5 rounded-xl text-sm">
+            <SelectTrigger className="w-full sm:w-[160px] h-12 bg-white/5 border-white/5 rounded-xl text-sm">
               <SelectValue placeholder="All Types" />
             </SelectTrigger>
             <SelectContent className="bg-[#111] border-white/10">
@@ -560,7 +638,7 @@ export default function ListingsPage() {
               {PROPERTY_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
             </SelectContent>
           </Select>
-          <div className="flex-1" />
+          <div className="hidden sm:block flex-1" />
           <div className="flex items-center gap-5 text-sm text-zinc-500">
             <span className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500" />
@@ -571,7 +649,7 @@ export default function ListingsPage() {
         </div>
       </div>
 
-      <div className="px-12 pb-12">
+      <div className="px-4 sm:px-6 lg:px-12 pb-12">
         {properties.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-32 text-center">
             <div className="w-24 h-24 rounded-2xl bg-white/5 flex items-center justify-center mb-6">
@@ -599,20 +677,25 @@ export default function ListingsPage() {
                   <div className="relative h-64 bg-[#111] overflow-hidden">
                     <ImageGallery images={images} title={property.title} />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent pointer-events-none" />
-                    <div className="absolute top-4 left-4 flex gap-2">
-                      <span className={`px-3 py-1.5 rounded-lg text-xs font-semibold ${
+                    <div className="absolute top-4 left-4 flex flex-wrap gap-2">
+                      <span className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
+                        property.purpose === 'Rent'
+                          ? 'bg-amber-500/90 text-white'
+                          : 'bg-emerald-500/90 text-white'
+                      }`}>
+                        {property.purpose === 'Rent' ? 'For Rent' : 'For Sale'}
+                      </span>
+                      <span className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
                         property.tenure === 'Freehold'
                           ? 'bg-emerald-500/90 text-white'
                           : 'bg-blue-500/90 text-white'
                       }`}>
                         {property.tenure}
                       </span>
-                      <span className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/20 text-white backdrop-blur-sm">
+                      <span className="px-3 py-1.5 rounded-full text-xs font-semibold bg-white/20 text-white backdrop-blur-sm">
                         {property.propertyType}
                       </span>
-                    </div>
-                    <div className="absolute top-4 right-4">
-                      <span className={`px-3 py-1.5 rounded-lg text-xs font-semibold backdrop-blur-sm ${
+                      <span className={`px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm ${
                         property.status === 'available'
                           ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/20'
                           : property.status === 'sold'
@@ -636,7 +719,7 @@ export default function ListingsPage() {
 
                   <div className="p-5">
                     <h3 className="text-base font-semibold text-white mb-1.5 line-clamp-2 leading-snug">{property.title}</h3>
-                    <div className="flex items-center gap-1.5 text-zinc-500 text-sm mb-4">
+                    <div className="flex items-center gap-1.5 text-zinc-500 text-sm mb-3">
                       <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
@@ -644,7 +727,7 @@ export default function ListingsPage() {
                       <span className="truncate">{property.location}{property.state ? `, ${property.state}` : ''}</span>
                     </div>
 
-                    <div className="flex items-center gap-4 text-sm text-zinc-400 mb-4">
+                    <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-400 mb-3">
                       <div className="flex items-center gap-1.5">
                         <svg className="w-4 h-4 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
@@ -660,25 +743,26 @@ export default function ListingsPage() {
                       {property.carParks > 0 && (
                         <div className="flex items-center gap-1.5">
                           <svg className="w-4 h-4 text-zinc-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
                           </svg>
                           <span>{property.carParks} car</span>
                         </div>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-3 mb-4">
-                      <span className="px-2 py-1 rounded-md bg-white/5 text-zinc-500 text-xs">{property.furnishing}</span>
-                      <span className="px-2 py-1 rounded-md bg-white/5 text-zinc-500 text-xs">{property.size} sqft</span>
+                    <div className="flex flex-wrap items-center gap-2 mb-4">
+                      <span className="px-2.5 py-1 rounded-full bg-white/5 text-zinc-500 text-xs">{property.furnishing}</span>
+                      <span className="px-2.5 py-1 rounded-full bg-white/5 text-zinc-500 text-xs">{property.size} sqft</span>
                       {property.landSize && (
-                        <span className="px-2 py-1 rounded-md bg-white/5 text-zinc-500 text-xs">{property.landSize} sqft land</span>
+                        <span className="px-2.5 py-1 rounded-full bg-white/5 text-zinc-500 text-xs">{property.landSize} sqft land</span>
                       )}
+                      <span className="px-2.5 py-1 rounded-full bg-white/5 text-zinc-500 text-xs">{property.lotType}</span>
                     </div>
 
                     <div className="flex items-center gap-2 pt-4 border-t border-white/5">
                       <button
                         onClick={() => openEdit(property)}
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium rounded-xl bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-white transition-all duration-150"
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl bg-white/5 text-zinc-300 hover:bg-white/10 hover:text-white transition-all duration-150"
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
@@ -687,7 +771,7 @@ export default function ListingsPage() {
                       </button>
                       <button
                         onClick={() => handleDelete(property.id)}
-                        className="flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium rounded-xl text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-all duration-150"
+                        className="flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-all duration-150"
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />

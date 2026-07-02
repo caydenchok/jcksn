@@ -1,81 +1,143 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { getHandoffConversations, getInactiveConversations, markHandoffComplete, recordFollowUp, getFollowUpMessage, getHandoffMessage } from '@/lib/follow-up'
+import { sendMessage } from '@/lib/whatsapp'
 
-// Get leads that need follow-up
 export async function GET() {
   try {
-    // Get leads that are "contacted" but haven't been updated in 3+ days
-    const threeDaysAgo = new Date()
-    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
-
-    const leads = await prisma.lead.findMany({
-      where: {
-        status: 'contacted',
-        phone: { not: '' },
-        updatedAt: { lt: threeDaysAgo },
-      },
-      orderBy: { updatedAt: 'asc' },
-      take: 20,
-    })
-
-    // Also get conversations that haven't had activity in 7 days
-    const sevenDaysAgo = new Date()
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-
-    const staleConversations = await prisma.conversation.findMany({
-      where: {
-        lastActive: { lt: sevenDaysAgo },
-        phone: { not: '' },
-      },
-      orderBy: { lastActive: 'asc' },
-      take: 20,
-    })
+    const handoffs = await getHandoffConversations()
+    const inactive = await getInactiveConversations(2)
 
     return NextResponse.json({
-      leadsNeedingFollowUp: leads,
-      staleConversations: staleConversations,
+      handoffs: handoffs.map(h => ({
+        phone: h.phone,
+        name: h.name,
+        lastActive: h.lastActive,
+        handoffNote: h.handoffNote,
+        followUpCount: h.followUpCount,
+      })),
+      inactive: inactive.map(i => ({
+        phone: i.phone,
+        name: i.name,
+        lastActive: i.lastActive,
+        followUpCount: i.followUpCount,
+      })),
     })
   } catch (error: any) {
-    console.error('Follow-up error:', error)
-    return NextResponse.json({ leadsNeedingFollowUp: [], staleConversations: [] })
+    console.error('[FollowUp] GET error:', error)
+    return NextResponse.json({ handoffs: [], inactive: [] })
   }
 }
 
-// Send follow-up message
 export async function POST(request: Request) {
   try {
     const data = await request.json()
+    const { phone, type } = data
 
-    if (!data.phone || !data.message) {
-      return NextResponse.json({ error: 'Phone and message required' }, { status: 400 })
+    if (!phone) {
+      return NextResponse.json({ error: 'Phone required' }, { status: 400 })
     }
 
-    // Store the follow-up message as a note
-    if (data.leadId) {
-      await prisma.lead.update({
-        where: { id: data.leadId },
-        data: {
-          notes: `Follow-up sent: ${data.message}\n---\n${data.notes || ''}`,
-          updatedAt: new Date(),
-        },
+    if (type === 'handoff_complete') {
+      await markHandoffComplete(phone)
+      return NextResponse.json({ success: true, message: 'Handoff marked complete' })
+    }
+
+    if (type === 'send_followup') {
+      const conv = await prisma.conversation.findUnique({ where: { phone } })
+      if (!conv) {
+        return NextResponse.json({ error: 'Conversation not found' }, { status: 404 })
+      }
+
+      // Check rate limit (max 3 follow-ups)
+      if (conv.followUpCount >= 3) {
+        return NextResponse.json({ error: 'Max follow-ups reached for this conversation' }, { status: 400 })
+      }
+
+      let message: string
+      if (conv.needsHandoff) {
+        message = getHandoffMessage()
+      } else {
+        message = getFollowUpMessage(conv.followUpCount)
+      }
+
+      // Try to send via WhatsApp
+      let sent = false
+      try {
+        await sendMessage(phone, message)
+        sent = true
+        console.log(`[FollowUp] Sent to ${phone}: ${message.substring(0, 50)}...`)
+      } catch (e) {
+        console.log(`[FollowUp] WhatsApp send failed for ${phone}:`, e)
+      }
+
+      // Store the follow-up message
+      try {
+        await prisma.chatMessage.create({
+          data: {
+            conversationId: conv.id,
+            role: 'assistant',
+            content: message,
+          },
+        })
+      } catch (e) {
+        console.log('[FollowUp] Could not store message:', e)
+      }
+
+      await recordFollowUp(phone, message)
+      await prisma.conversation.update({
+        where: { phone },
+        data: { lastMessage: message },
+      })
+
+      return NextResponse.json({
+        success: true,
+        sent,
+        message,
+        phone,
+        type: conv.needsHandoff ? 'handoff' : 'followup',
       })
     }
 
-    // Log the follow-up attempt
-    await prisma.chatMessage.create({
-      data: {
-        conversationId: 0, // System message
-        role: 'system',
-        content: `Follow-up to ${data.phone}: ${data.message}`,
-      },
-    }).catch(() => {}) // Best effort
+    if (type === 'send_bulk_followup') {
+      const inactive = await getInactiveConversations(2)
+      const results = []
 
-    return NextResponse.json({
-      success: true,
-      message: 'Follow-up queued. Will be sent when WhatsApp is connected.',
-    })
+      for (const conv of inactive.slice(0, 10)) {
+        if (conv.followUpCount >= 3) continue
+
+        const message = getFollowUpMessage(conv.followUpCount)
+        let sent = false
+        try {
+          await sendMessage(conv.phone, message)
+          sent = true
+        } catch (e) {}
+
+        try {
+          await prisma.chatMessage.create({
+            data: {
+              conversationId: conv.id,
+              role: 'assistant',
+              content: message,
+            },
+          })
+        } catch (e) {}
+
+        await recordFollowUp(conv.phone, message)
+        await prisma.conversation.update({
+          where: { phone: conv.phone },
+          data: { lastMessage: message },
+        })
+
+        results.push({ phone: conv.phone, sent, message })
+      }
+
+      return NextResponse.json({ success: true, sent: results.length, results })
+    }
+
+    return NextResponse.json({ error: 'Invalid type' }, { status: 400 })
   } catch (error: any) {
-    console.error('Follow-up POST error:', error)
-    return NextResponse.json({ error: 'Failed to queue follow-up' }, { status: 500 })
+    console.error('[FollowUp] POST error:', error)
+    return NextResponse.json({ error: 'Failed' }, { status: 500 })
   }
 }

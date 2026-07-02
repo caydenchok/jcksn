@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, ChangeEvent, ReactNode } from 'react'
 import dynamic from 'next/dynamic'
+import Link from 'next/link'
 import { BRAND } from '@/lib/brand'
 
 // 3D hero centerpiece — client-only (WebGL)
@@ -21,6 +22,8 @@ interface Property {
   description: string
   price: number
   propertyType: string
+  propertyCategory: string
+  purpose: string
   tenure: string
   furnishing: string
   lotType: string
@@ -81,6 +84,16 @@ const Icons = {
   compass: <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9 9 0 100-18 9 9 0 000 18z"/><path strokeLinecap="round" strokeLinejoin="round" d="M9.75 9.75l4.5-1.5-1.5 4.5-4.5 1.5 1.5-4.5z"/></svg>,
   key: <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z"/></svg>,
   check: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>,
+  // Modal detail icons
+  tenure: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/></svg>,
+  furnish: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></svg>,
+  lot: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15"/></svg>,
+  land: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386l-1.591 1.591M21 12h-2.25m-.386 6.364l-1.591-1.591M12 18.75V21m-4.773-4.227l-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z"/></svg>,
+  features: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.455 2.456L21.75 6l-1.036.259a3.375 3.375 0 00-2.455 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z"/></svg>,
+  desc: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>,
+  price: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>,
+  status: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>,
+  type: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6H15m-1.5 3H15m-1.5 3H15M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12l9-3L12 3 3 0z"/></svg>,
 }
 
 // Scroll-reveal wrapper. variant: 'up' (fade-up) | 'clip' (mask wipe up) | 'scale'
@@ -96,7 +109,10 @@ function Reveal({ children, className = '', delay = 0, variant = 'up', once = tr
         if (e.isIntersecting) { setShown(true); if (once) io.disconnect() }
         else if (!once) setShown(false)
       })
-    }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' })
+    // threshold must be 0: the 'clip' variant self-clips to inset(0 0 100%),
+    // which the browser measures as ratio 0 — any positive threshold would
+    // deadlock and the element would never reveal.
+    }, { threshold: 0, rootMargin: '0px 0px -12% 0px' })
     io.observe(el)
     return () => io.disconnect()
   }, [once])
@@ -172,55 +188,6 @@ function Gallery({ images, title }: { images: string[]; title: string }) {
   )
 }
 
-function DetailModal({p,phone,agentName,onClose}:{p:Property;phone:string;agentName:string;onClose:()=>void}) {
-  const imgs=(()=>{try{return JSON.parse(p.images||'[]')}catch{return[]}})()
-  const [cur,setCur]=useState(0)
-  const psf=p.size?Math.round(p.price/parseInt(p.size)):0
-  useEffect(()=>{const prev=document.body.style.overflow;document.body.style.overflow='hidden';return()=>{document.body.style.overflow=prev}},[])
-  return(
-    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose} style={fontBody}>
-      <div className="absolute inset-0 bg-neutral-900/40 backdrop-blur-md"/>
-      <div className="relative bg-white/90 backdrop-blur-2xl border border-white/70 rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-4xl max-h-[92vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
-        <button aria-label="Close" onClick={onClose} className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/80 shadow flex items-center justify-center text-neutral-600 hover:bg-white transition-colors border border-white/60">{Icons.close}</button>
-        <div className="relative h-72 sm:h-96 bg-neutral-100 overflow-hidden sm:rounded-t-3xl">
-          {imgs.length?(<>
-            {imgs.map((s:string,i:number)=><img key={i} src={s} alt={`${p.title} photo ${i+1}`} className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${i===cur?'opacity-100':'opacity-0'}`}/>)}
-            {imgs.length>1&&(<>
-              <button aria-label="Previous photo" onClick={()=>setCur(v=>v===0?imgs.length-1:v-1)} className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/80 flex items-center justify-center text-neutral-800 hover:bg-white transition-colors shadow border border-white/60">{Icons.chevronLeft}</button>
-              <button aria-label="Next photo" onClick={()=>setCur(v=>v===imgs.length-1?0:v+1)} className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/80 flex items-center justify-center text-neutral-800 hover:bg-white transition-colors shadow border border-white/60">{Icons.chevronRight}</button>
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">{imgs.map((_:string,i:number)=><button aria-label={`Go to photo ${i+1}`} key={i} onClick={()=>setCur(i)} className={`h-1.5 rounded-full transition-all ${i===cur?'bg-white w-6':'bg-white/60 w-2'}`}/>)}</div>
-            </>)}
-            <div className="absolute top-4 left-4 flex gap-2">
-              <span className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold tracking-wide ${p.tenure==='Freehold'?'text-black':'bg-white/90 text-neutral-800 backdrop-blur-sm'}`} style={p.tenure==='Freehold'?{background:GOLD}:undefined}>{p.tenure}</span>
-              <span className="px-3 py-1.5 rounded-lg text-[11px] font-semibold bg-white/90 text-neutral-800 backdrop-blur-sm">{p.propertyType}</span>
-            </div>
-          </>):<div className="w-full h-full flex items-center justify-center"><svg className="w-20 h-20 text-neutral-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={0.75}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3H21m-3.75 3H21"/></svg></div>}
-        </div>
-        <div className="p-6 sm:p-8">
-          <div className="flex items-start justify-between gap-4 mb-4">
-            <div>
-              <h2 className="text-2xl sm:text-3xl font-semibold text-neutral-900 mb-1.5" style={fontDisplay}>{p.title}</h2>
-              <div className="flex items-center gap-2 text-neutral-500 text-sm">{Icons.location}<span>{p.location}{p.state?`, ${p.state}`:''}</span></div>
-            </div>
-            <div className="text-right flex-shrink-0">
-              <p className="text-3xl font-semibold" style={{...fontDisplay,color:GOLDT}}>RM {p.price.toLocaleString()}</p>
-              {psf>0&&<p className="text-sm text-neutral-500">RM {psf.toLocaleString()} psf</p>}
-            </div>
-          </div>
-          <p className="text-neutral-600 text-sm leading-relaxed mb-6">{p.description}</p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-            {[{v:p.bedrooms,l:'Bedrooms',icon:Icons.bed},{v:p.bathrooms,l:'Bathrooms',icon:Icons.bath},{v:p.carParks,l:'Car Parks',icon:Icons.car},{v:`${p.size} sqft`,l:'Built-up',icon:Icons.size}].map((x,i)=><div key={i} className="bg-white/50 rounded-xl p-4 text-center border border-white/60"><div className="flex justify-center mb-2" style={{color:GOLDT}}>{x.icon}</div><p className="text-xl font-bold text-neutral-900">{x.v}</p><p className="text-[11px] text-neutral-500 mt-1">{x.l}</p></div>)}
-          </div>
-          <div className="flex flex-wrap gap-2 mb-6">
-            {[p.furnishing,p.lotType,p.landSize&&`${p.landSize} sqft land`,p.state&&p.state].filter(Boolean).map((t,i)=><span key={i} className="px-3 py-1.5 rounded-lg bg-white/60 text-neutral-600 text-xs font-medium border border-white/60">{t}</span>)}
-          </div>
-          <a href={`https://wa.me/${phone}?text=${encodeURIComponent(`Hi ${agentName}! I'm interested in "${p.title}" at ${p.location}.`)}`} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2.5 w-full py-4 rounded-full bg-[#25D366] hover:bg-[#1ebe5a] text-white font-semibold transition-all active:scale-[0.98] shadow-lg">{Icons.wa} Enquire on WhatsApp</a>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // Chapter eyebrow label
 function Chapter({ no, label }: { no: string; label: string }) {
   return (
@@ -232,18 +199,67 @@ function Chapter({ no, label }: { no: string; label: string }) {
   )
 }
 
+// What the guide says at each chapter of the scroll story
+const GUIDE_LINES: Record<string, string> = {
+  story: 'Hi, I’m Jackson \u{1F44B} Let me walk you through how we find your home.',
+  numbers: 'These are my live listings — real numbers, nothing inflated.',
+  browse: 'Condo? Landed? Studio? Pick what suits your life.',
+  listings: 'My current handpicked homes — tap any card for the full story.',
+  agent: 'That’s me! Licensed negotiator, born and based in Sabah.',
+  services: 'Buying, selling, renting — I handle everything in between.',
+  faq: 'The questions everyone asks me, answered honestly.',
+  contact: 'Ready when you are — one WhatsApp message starts it all.',
+}
+
+// Floating tour guide — the hero character pops up and introduces each section
+function GuideAvatar({ active }: { active: string }) {
+  const [dismissed, setDismissed] = useState(false)
+  const line = GUIDE_LINES[active]
+  const show = !dismissed && !!line
+  return (
+    <div
+      aria-hidden={!show}
+      className={`fixed left-4 sm:left-6 bottom-4 sm:bottom-6 z-[75] flex items-end gap-2.5 transition-all duration-500 ${show ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6 pointer-events-none'}`}
+      style={{ transitionTimingFunction: EASE }}
+    >
+      <div
+        className="z-anim flex-shrink-0 w-12 h-12 sm:w-16 sm:h-16 rounded-full border-2 shadow-[0_8px_25px_-6px_rgba(80,60,15,0.5)] bg-neutral-900"
+        style={{
+          borderColor: GOLD,
+          backgroundImage: 'url(/hero-banner.jpg)',
+          backgroundSize: '520% auto',
+          backgroundPosition: '23.5% 2%',
+          animation: 'zguidebob 3.2s ease-in-out infinite',
+        }}
+      />
+      <div className={`relative max-w-[230px] sm:max-w-[300px] rounded-2xl rounded-bl-md px-4 py-3 ${glass}`}>
+        <button
+          aria-label="Hide guide"
+          onClick={() => setDismissed(true)}
+          className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-neutral-800 text-white text-[10px] leading-none flex items-center justify-center hover:bg-neutral-600 transition-colors"
+        >
+          ✕
+        </button>
+        <p key={active} className="z-anim text-[13px] sm:text-sm leading-snug text-neutral-800" style={{ animation: 'zguidepop 0.45s ' + EASE }}>
+          {line}
+        </p>
+      </div>
+    </div>
+  )
+}
+
+
 export default function PublicListingsPage() {
   const [properties,setProperties]=useState<Property[]>([])
   const [agent,setAgent]=useState<AgentProfile|null>(null)
   const [search,setSearch]=useState('')
   const [filterType,setFilterType]=useState('all')
   const [loading,setLoading]=useState(true)
-  const [selected,setSelected]=useState<Property|null>(null)
   const [sortBy,setSortBy]=useState('newest')
+  const [filterCategory,setFilterCategory]=useState<'all'|'Rent'|'Buy'>('all')
   const [progress,setProgress]=useState(0)
   const [scrolled,setScrolled]=useState(false)
   const [active,setActive]=useState('top')
-  const heroImgRef=useRef<HTMLImageElement>(null)
 
   useEffect(()=>{
     Promise.all([fetch('/api/properties').then(r=>r.json()),fetch('/api/agent').then(r=>r.json())]).then(([props,agentData])=>{
@@ -264,7 +280,6 @@ export default function PublicListingsPage() {
         const max=h.scrollHeight-h.clientHeight
         setProgress(max>0?h.scrollTop/max:0)
         setScrolled(h.scrollTop>24)
-        if(!reduced&&heroImgRef.current){heroImgRef.current.style.transform=`translate3d(0, ${h.scrollTop*0.15}px, 0) scale(1.12)`}
       })
     }
     onScroll()
@@ -298,7 +313,8 @@ export default function PublicListingsPage() {
   const filtered=properties.filter(p=>{
     const ms=!search||p.title.toLowerCase().includes(search.toLowerCase())||p.location.toLowerCase().includes(search.toLowerCase())||p.description.toLowerCase().includes(search.toLowerCase())
     const mt=filterType==='all'||p.propertyType===filterType
-    return ms&&mt
+    const mc=filterCategory==='all'||p.purpose===filterCategory
+    return ms&&mt&&mc
   }).sort((a,b)=>{
     if(sortBy==='price-low')return a.price-b.price
     if(sortBy==='price-high')return b.price-a.price
@@ -317,7 +333,6 @@ export default function PublicListingsPage() {
     {name:'Studio',type:'Studio',icon:Icons.apartment,count:properties.filter(p=>p.propertyType==='Studio').length},
   ]
 
-  const heroImg=(properties.length>0&&pi(properties[0].images)[0])||FALLBACK_IMAGES[0]
   const waHref=(msg:string)=>`https://wa.me/${ph}?text=${encodeURIComponent(msg)}`
 
   const story=[
@@ -329,7 +344,8 @@ export default function PublicListingsPage() {
 
   const chapters:[string,string,string][]=[
     ['top','01','Welcome'],['story','02','The Search'],['numbers','03','Trust'],
-    ['browse','04','Types'],['listings','05','Homes'],['agent','06','Your Guide'],['contact','07','Begin'],
+    ['browse','04','Types'],['listings','05','Homes'],['agent','06','Your Guide'],
+    ['services','07','Services'],['faq','08','FAQ'],['contact','09','Begin'],
   ]
 
   return(
@@ -341,19 +357,23 @@ export default function PublicListingsPage() {
         @keyframes zfloatB{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-7vw,5vw) scale(1.2)}}
         @keyframes zfloatC{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(5vw,6vw) scale(1.1)}}
         @keyframes zmarquee{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+        @keyframes zguidebob{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+        @keyframes zguidepop{0%{opacity:0;transform:translateY(6px) scale(0.97)}100%{opacity:1;transform:translateY(0) scale(1)}}
         @media (prefers-reduced-motion: reduce){html{scroll-behavior:auto;scroll-snap-type:none}.z-anim{animation:none!important}}
       `}</style>
 
-      {/* Full-page 3D property neighbourhood (WebGL) */}
-      <div className="fixed inset-0 -z-10 pointer-events-none"><ThreeScene/></div>
+      {/* Solid base background */}
+      <div className="fixed inset-0 -z-20 bg-[#FAF7F0]"/>
 
-      {/* Animated aurora background (sits behind the 3D layer) */}
-      <div className="fixed inset-0 -z-20 overflow-hidden bg-[#FAF7F0]">
+      {/* Animated aurora background (sits behind everything) */}
+      <div className="fixed inset-0 -z-15 overflow-hidden pointer-events-none">
         <div className="z-anim absolute -top-[10%] -left-[5%] w-[55vw] h-[55vw] rounded-full blur-[110px] opacity-60" style={{background:'radial-gradient(circle, #F3D58C, transparent 70%)',animation:'zfloatA 22s ease-in-out infinite'}}/>
         <div className="z-anim absolute top-[30%] right-[-10%] w-[50vw] h-[50vw] rounded-full blur-[120px] opacity-50" style={{background:'radial-gradient(circle, #E2A93B, transparent 70%)',animation:'zfloatB 26s ease-in-out infinite'}}/>
         <div className="z-anim absolute bottom-[-15%] left-[20%] w-[45vw] h-[45vw] rounded-full blur-[120px] opacity-40" style={{background:'radial-gradient(circle, #EAD9BC, transparent 70%)',animation:'zfloatC 30s ease-in-out infinite'}}/>
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgba(250,247,240,0.6))]"/>
       </div>
+
+      {/* 3D property city (WebGL) — sits above aurora */}
+      <div className="fixed inset-0 -z-10 pointer-events-none opacity-40"><ThreeScene/></div>
 
       {/* Scroll progress */}
       <div className="fixed top-0 left-0 right-0 h-[2px] z-[90] bg-transparent">
@@ -375,8 +395,8 @@ export default function PublicListingsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className={`flex items-center justify-between rounded-full px-5 sm:px-6 h-14 transition-all duration-500 ${scrolled?glass:'bg-transparent border border-transparent'}`}>
             <a href="#top" className="flex items-baseline gap-2">
-              <span className="text-xl font-bold tracking-[0.2em] text-neutral-900" style={fontDisplay}>ZERO<span style={{color:GOLD}}>88</span></span>
-              <span className="hidden sm:inline text-[10px] tracking-[0.3em] text-neutral-400 uppercase">Property</span>
+              <span className="text-xl font-bold tracking-[0.2em] text-white" style={fontDisplay}>ZERO<span style={{color:GOLD}}>88</span></span>
+              <span className="hidden sm:inline text-[10px] tracking-[0.3em] text-white/60 uppercase">Property</span>
             </a>
             <nav className="hidden md:flex items-center gap-7 text-sm text-neutral-600">
               <a href="#story" className="hover:text-neutral-900 transition-colors">Story</a>
@@ -384,58 +404,47 @@ export default function PublicListingsPage() {
               <a href="#listings" className="hover:text-neutral-900 transition-colors">Listings</a>
               <a href="#agent" className="hover:text-neutral-900 transition-colors">About</a>
             </nav>
-            <a href={waHref(`Hi ${agentName}! I found your property page and would like to know more.`)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-4 sm:px-5 py-2.5 rounded-full bg-neutral-900 text-white hover:bg-neutral-800 transition-all active:scale-95">
-              <span className="hidden sm:inline">WhatsApp</span><span className="sm:hidden">Chat</span>
+            <a href={waHref(`Hi ${agentName}! I found your property page and would like to know more.`)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold px-4 sm:px-5 py-2.5 rounded-full bg-[#25D366] hover:bg-[#1ebe5a] text-white transition-all active:scale-95 shadow-[0_4px_15px_-3px_rgba(37,211,102,0.5)]">
+              {Icons.wa}<span className="hidden sm:inline">WhatsApp</span><span className="sm:hidden">Chat</span>
             </a>
           </div>
         </div>
       </header>
 
       {/* ===== SCENE 01 — HERO ===== */}
-      <section id="top" data-scene className="snap-start relative min-h-dvh flex flex-col justify-center pt-28 pb-20 overflow-hidden">
-        <span aria-hidden className="z-anim pointer-events-none select-none absolute -bottom-[4vw] left-1/2 -translate-x-1/2 text-[26vw] leading-none font-bold text-white/20 tracking-tighter whitespace-nowrap" style={fontDisplay}>ZERO88</span>
-        <div className="relative z-10 max-w-7xl mx-auto px-6 sm:px-8 w-full grid lg:grid-cols-12 gap-10 items-center">
-          <div className="lg:col-span-6 relative z-10">
-            <Reveal><Chapter no="01" label="Welcome"/></Reveal>
-            <h1 className="font-semibold text-neutral-900 tracking-tight leading-[0.95] mb-7" style={{...fontDisplay,fontSize:'clamp(2.75rem,6.5vw,6rem)'}}>
-              <Words text="Every home" />
-              <br/>
-              <span className="italic" style={{color:GOLDT}}><Words text="has a story." /></span>
-            </h1>
-            <Reveal delay={500}>
-              <p className="text-neutral-700 text-base sm:text-xl max-w-lg mb-10 leading-relaxed" style={{ textShadow: '0 1px 12px rgba(250,247,240,0.95), 0 0 4px rgba(250,247,240,0.9)' }}>
-                {tagline}. Let&apos;s write the next chapter of yours — buying, selling or renting in {BRAND.region} with {agentName}.
-              </p>
-            </Reveal>
-            <Reveal delay={620}>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <a href={waHref(`Hi ${agentName}! I found your property page and would like to know more.`)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2.5 bg-[#25D366] hover:bg-[#1ebe5a] text-white font-semibold px-8 py-4 rounded-full transition-all duration-200 shadow-[0_10px_40px_-12px_rgba(37,211,102,0.7)] active:scale-[0.97]">{Icons.wa} Start on WhatsApp</a>
-                <a href="#story" className={`inline-flex items-center justify-center gap-2 px-8 py-4 rounded-full font-semibold text-neutral-800 hover:text-neutral-900 transition-all duration-200 ${glass}`}>
-                  See how it works {Icons.arrow}
-                </a>
-              </div>
-            </Reveal>
-          </div>
+      {/* ===== SCENE 01 — HERO ===== */}
+      <section id="top" data-scene className="snap-start relative min-h-dvh overflow-hidden">
+        {/* Full-bleed hero image */}
+        <div className="absolute inset-0">
+          <img
+            src="/hero-banner.jpg"
+            alt="Jackson Liew - ZERO88 Property"
+            className="w-full h-full object-cover [object-position:20%_top] sm:object-center"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent"/>
+        </div>
 
-          <div className="lg:col-span-6 relative">
-            <Reveal variant="clip" delay={200} className="relative aspect-[4/5] rounded-[2rem] overflow-hidden shadow-[0_40px_90px_-30px_rgba(80,60,15,0.45)] border border-white/60">
-              {heroImg?<img ref={heroImgRef} src={heroImg} alt="Featured property" className="absolute inset-0 w-full h-full object-cover will-change-transform" style={{transform:'scale(1.12)'}}/>:<div className="absolute inset-0 bg-gradient-to-br from-[#F3D58C] to-[#EAD9BC]"/>}
-              <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent"/>
-            </Reveal>
-            <Reveal delay={500} className={`absolute -bottom-5 left-4 sm:-left-6 rounded-2xl p-4 flex items-center gap-3 ${glass}`}>
-              {profilePic?<img src={profilePic} alt={agentName} className="w-12 h-12 rounded-xl object-cover"/>:<div className="w-12 h-12 rounded-xl flex items-center justify-center text-black font-bold" style={{background:GOLD,...fontDisplay}}>{agentName[0]?.toUpperCase()}</div>}
-              <div>
-                <p className="font-semibold text-neutral-900 text-sm leading-tight">{agentName}</p>
-                <p className="text-xs" style={{color:GOLDT}}>{BRAND.jobTitle} · {ren}</p>
-              </div>
+        {/* Bottom CTA bar */}
+        <div className="absolute bottom-0 inset-x-0 z-10 pb-4 pt-3 px-5 sm:px-8">
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-end justify-between gap-2 sm:gap-4">
+            <div>
+              <Reveal>
+                <h2 className="text-white text-xl sm:text-3xl font-semibold mb-1" style={fontDisplay}>Let&apos;s find your perfect home</h2>
+                <p className="text-white/70 text-xs sm:text-base max-w-md">Buy, sell or rent in {BRAND.region} with {agentName}.</p>
+              </Reveal>
+            </div>
+            <Reveal delay={200}>
+              <a href="#listings" className={`inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full font-semibold text-white text-sm hover:text-white/90 transition-all duration-200 bg-white/15 backdrop-blur-md border border-white/20`}>
+                Browse Properties {Icons.arrow}
+              </a>
             </Reveal>
           </div>
         </div>
 
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 hidden sm:flex flex-col items-center gap-2 text-neutral-400">
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 hidden sm:flex flex-col items-center gap-2 text-white/50 z-10">
           <span className="text-[10px] font-medium uppercase tracking-[0.3em]">Scroll</span>
-          <div className="w-5 h-8 rounded-full border border-neutral-300 flex justify-center pt-1.5">
-            <div className="w-1 h-2 rounded-full animate-bounce" style={{background:GOLD}}/>
+          <div className="w-5 h-8 rounded-full border border-white/30 flex justify-center pt-1.5">
+            <div className="w-1 h-2 rounded-full animate-bounce bg-white/60"/>
           </div>
         </div>
       </section>
@@ -455,7 +464,7 @@ export default function PublicListingsPage() {
 
       {/* ===== SCENE 02 — STORY ===== */}
       <section id="story" data-scene className="snap-start relative min-h-dvh flex flex-col justify-center py-24">
-        <div className="max-w-7xl mx-auto px-6 sm:px-8 w-full">
+        <div className="relative z-10 max-w-7xl mx-auto px-6 sm:px-8 w-full">
           <Reveal className="max-w-2xl mb-14">
             <Chapter no="02" label="The Search"/>
             <h2 className="font-semibold text-neutral-900 tracking-tight" style={{...fontDisplay,fontSize:'clamp(2rem,5vw,3.75rem)'}}>It starts with a conversation.</h2>
@@ -478,7 +487,7 @@ export default function PublicListingsPage() {
 
       {/* ===== SCENE 03 — NUMBERS ===== */}
       <section id="numbers" data-scene className="snap-start relative min-h-dvh flex flex-col justify-center py-24">
-        <div className="max-w-7xl mx-auto px-6 sm:px-8 w-full">
+        <div className="relative z-10 max-w-7xl mx-auto px-6 sm:px-8 w-full">
           <Reveal className="text-center max-w-2xl mx-auto mb-14">
             <div className="flex justify-center"><Chapter no="03" label="Trust"/></div>
             <h2 className="font-semibold text-neutral-900 tracking-tight" style={{...fontDisplay,fontSize:'clamp(2rem,5vw,3.75rem)'}}>Backed by the numbers.</h2>
@@ -525,26 +534,37 @@ export default function PublicListingsPage() {
             <h2 className="font-semibold text-neutral-900 tracking-tight" style={{...fontDisplay,fontSize:'clamp(2rem,5vw,3.75rem)'}}>Handpicked spaces.</h2>
           </Reveal>
 
-          <div className={`flex flex-col sm:flex-row gap-3 mb-12 p-2 rounded-3xl ${glass}`}>
-            <div className="flex items-center gap-3 px-5 py-3 rounded-full bg-white/60 border border-white/60 flex-1 focus-within:border-neutral-400 transition-colors">
+          <div className={`flex flex-col gap-4 mb-14`}>
+            {/* Rent / Buy Toggle */}
+            <div className={`flex p-1.5 rounded-2xl ${glass} self-start`}>
+              {([['all','All'],['Rent','Rent'],['Buy','Buy']] as const).map(([key,label])=>(
+                <button key={key} onClick={()=>setFilterCategory(key)} className={`px-7 py-3 rounded-xl text-sm font-semibold transition-all duration-300 ${filterCategory===key?'bg-[#E2A93B] text-black shadow-lg':'text-neutral-600 hover:text-neutral-900'}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+            {/* Search + Filters */}
+            <div className={`flex flex-col sm:flex-row gap-3 p-3 rounded-3xl ${glass}`}>
+            <div className="flex items-center gap-3 px-5 py-3.5 rounded-full bg-white/60 border border-white/60 flex-1 focus-within:border-neutral-400 transition-colors">
               <span className="text-neutral-400">{Icons.search}</span>
               <input placeholder="Search location, title..." value={search} onChange={(e:ChangeEvent<HTMLInputElement>)=>setSearch(e.target.value)} className="bg-transparent border-0 p-0 text-sm text-neutral-900 placeholder:text-neutral-400 focus:outline-none w-full"/>
             </div>
-            <select aria-label="Filter by type" value={filterType} onChange={(e)=>setFilterType(e.target.value)} className="px-5 py-3 rounded-full bg-white/60 border border-white/60 text-sm text-neutral-900 focus:outline-none cursor-pointer">
+            <select aria-label="Filter by type" value={filterType} onChange={(e)=>setFilterType(e.target.value)} className="px-5 py-3.5 rounded-full bg-white/60 border border-white/60 text-sm text-neutral-900 focus:outline-none cursor-pointer">
               <option value="all">All Types</option>
               {categories.map(c=><option key={c.type} value={c.type}>{c.name}</option>)}
             </select>
-            <select aria-label="Sort listings" value={sortBy} onChange={(e)=>setSortBy(e.target.value)} className="px-5 py-3 rounded-full bg-white/60 border border-white/60 text-sm text-neutral-900 focus:outline-none cursor-pointer">
+            <select aria-label="Sort listings" value={sortBy} onChange={(e)=>setSortBy(e.target.value)} className="px-5 py-3.5 rounded-full bg-white/60 border border-white/60 text-sm text-neutral-900 focus:outline-none cursor-pointer">
               <option value="newest">Newest</option>
               <option value="price-low">Price: Low to High</option>
               <option value="price-high">Price: High to Low</option>
               <option value="size">Largest</option>
             </select>
             <span className="text-sm text-neutral-500 flex items-center px-3">{filtered.length} results</span>
+            </div>
           </div>
 
           {loading?(
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
               {[1,2,3,4,5,6].map(i=><div key={i} className={`rounded-3xl overflow-hidden animate-pulse ${glass}`}><div className="h-64 bg-white/40"/><div className="p-6 space-y-3"><div className="h-5 bg-white/50 rounded w-3/4"/><div className="h-4 bg-white/50 rounded w-1/2"/><div className="h-3 bg-white/50 rounded w-2/3"/></div></div>)}
             </div>
           ):filtered.length===0?(
@@ -560,7 +580,7 @@ export default function PublicListingsPage() {
                 const psf=p.size?Math.round(p.price/parseInt(p.size)):0
                 return(
                   <Reveal key={p.id} delay={(idx%3)*90}>
-                  <div className={`group rounded-3xl overflow-hidden hover:-translate-y-2 transition-all duration-500 cursor-pointer h-full ${glass} hover:bg-white/55 hover:shadow-[0_30px_70px_-25px_rgba(80,60,15,0.45)]`} onClick={()=>setSelected(p)}>
+                  <Link href={`/p/${p.id}`} className={`group block rounded-3xl overflow-hidden hover:-translate-y-2 transition-all duration-500 h-full ${glass} hover:bg-white/55 hover:shadow-[0_30px_70px_-25px_rgba(80,60,15,0.45)]`}>
                     <div className="relative h-64 bg-neutral-100 overflow-hidden m-2 rounded-2xl">
                       <div className="absolute inset-0 transition-transform duration-[1200ms] group-hover:scale-105" style={{transitionTimingFunction:EASE}}><Gallery images={imgs} title={p.title}/></div>
                       <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent pointer-events-none"/>
@@ -587,9 +607,9 @@ export default function PublicListingsPage() {
                         <span className="px-2 py-0.5 rounded-md bg-white/60 text-neutral-500 text-[11px] font-medium border border-white/60">{p.lotType}</span>
                         {p.carParks>0&&<span className="px-2 py-0.5 rounded-md bg-white/60 text-neutral-500 text-[11px] font-medium border border-white/60">{p.carParks} car</span>}
                       </div>
-                      <button onClick={e=>{e.stopPropagation();window.open(waHref(`Hi ${agentName}! I'm interested in "${p.title}" at ${p.location}.`),'_blank')}} className="w-full flex items-center justify-center gap-2 py-3 rounded-full bg-[#25D366] hover:bg-[#1ebe5a] text-white font-semibold text-sm transition-all duration-200 active:scale-[0.98]">{Icons.wa} Enquire on WhatsApp</button>
+                      <button onClick={e=>{e.preventDefault();e.stopPropagation();window.open(waHref(`Hi ${agentName}! I'm interested in "${p.title}" at ${p.location}.`),'_blank')}} className="w-full flex items-center justify-center gap-2 py-3 rounded-full bg-[#25D366] hover:bg-[#1ebe5a] text-white font-semibold text-sm transition-all duration-200 active:scale-[0.98]">{Icons.wa} Enquire on WhatsApp</button>
                     </div>
-                  </div>
+                  </Link>
                   </Reveal>
                 )
               })}
@@ -602,7 +622,7 @@ export default function PublicListingsPage() {
       <section id="agent" data-scene className="snap-start relative min-h-dvh flex flex-col justify-center py-24">
         <div className="max-w-7xl mx-auto px-6 sm:px-8 grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
           <Reveal variant="clip">
-            <div className="relative">
+            <div className="relative pb-8">
               <div className="aspect-[4/5] max-w-md rounded-[2rem] overflow-hidden border border-white/60 shadow-xl bg-gradient-to-br from-[#F3D58C] to-[#EAD9BC]">
                 {profilePic?<img src={profilePic} alt={agentName} className="w-full h-full object-cover"/>:(
                   <div className="relative w-full h-full flex flex-col items-center justify-center text-center p-8">
@@ -614,7 +634,7 @@ export default function PublicListingsPage() {
                   </div>
                 )}
               </div>
-              <div className={`absolute -bottom-5 -right-2 sm:right-6 rounded-2xl px-5 py-3 ${glass}`}>
+              <div className={`absolute bottom-2 -right-2 sm:right-4 rounded-2xl px-5 py-3 ${glass} z-10`}>
                 <p className="text-[10px] text-neutral-500 uppercase tracking-[0.2em]">Licensed</p>
                 <p className="font-semibold" style={{...fontDisplay,color:GOLDT}}>{ren}</p>
               </div>
@@ -644,15 +664,85 @@ export default function PublicListingsPage() {
         </div>
       </section>
 
-      {/* ===== SCENE 07 — CONTACT ===== */}
+      {/* ===== SCENE 07 — SERVICES ===== */}
+      <section id="services" data-scene className="relative py-24">
+        <div className="max-w-7xl mx-auto px-6 sm:px-8 w-full">
+          <Reveal className="text-center max-w-2xl mx-auto mb-14">
+            <Chapter no="07" label="Services"/>
+            <h2 className="font-semibold text-neutral-900 tracking-tight" style={{...fontDisplay,fontSize:'clamp(2rem,5vw,3.75rem)'}}>What we offer.</h2>
+          </Reveal>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {[
+              {icon:Icons.home,title:'Residential Sales',desc:'Buy your dream home from our curated selection of houses, condos, and semi-Ds across Sabah.'},
+              {icon:Icons.building,title:'Commercial Properties',desc:'Office spaces, retail lots, and shophouses in prime locations for your business growth.'},
+              {icon:Icons.key,title:'Rental Services',desc:'Find the perfect rental property — from studio apartments to family homes, fully managed.'},
+              {icon:Icons.chat,title:'Free Consultation',desc:'Not sure where to start? Talk to us for honest advice on the property market and your options.'},
+              {icon:Icons.compass,title:'Market Guidance',desc:'We provide data-driven insights on pricing, trends, and the best areas to invest in Sabah.'},
+              {icon:Icons.check,title:'Full Support',desc:'From viewing to paperwork to handover — we handle the entire process so you don\'t have to.'},
+            ].map((s,i)=>(
+              <Reveal key={i} delay={i*80} variant="up">
+                <div className={`group h-full rounded-3xl p-7 transition-all duration-500 hover:-translate-y-2 ${glass} hover:bg-white/55`}>
+                  <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-5 text-black transition-transform duration-500 group-hover:scale-110" style={{background:GOLD}}>{s.icon}</div>
+                  <h3 className="text-lg font-semibold text-neutral-900 mb-2" style={fontDisplay}>{s.title}</h3>
+                  <p className="text-neutral-500 text-sm leading-relaxed">{s.desc}</p>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ===== SCENE 08 — FAQ ===== */}
+      <section id="faq" data-scene className="relative py-24">
+        <div className="max-w-3xl mx-auto px-6 sm:px-8 w-full">
+          <Reveal className="text-center mb-14">
+            <Chapter no="08" label="FAQ"/>
+            <h2 className="font-semibold text-neutral-900 tracking-tight" style={{...fontDisplay,fontSize:'clamp(2rem,5vw,3.75rem)'}}>Common questions.</h2>
+          </Reveal>
+          <div className="space-y-4">
+            {[
+              {q:'How do I start looking for a property?',a:'Simply message us on WhatsApp or browse our listings above. We\'ll understand your needs and find the best options for you.'},
+              {q:'What areas do you cover?',a:'We cover Kota Kinabalu, Penampang, Menggatal, Inanam, Sepanggar, and greater Sabah. Contact us for specific areas.'},
+              {q:'Do I need to pay for your services?',a:'For buyers and tenants, our consultation is free. We earn from the property transaction, so our service costs you nothing extra.'},
+              {q:'Can I schedule a property viewing?',a:'Yes! Just send us a WhatsApp message with the property you\'re interested in and we\'ll arrange a viewing at your convenience.'},
+              {q:'What documents do I need for buying?',a:'Generally: IC/passport, proof of income, and bank statements. We\'ll guide you through the exact requirements for your situation.'},
+            ].map((f,i)=>(
+              <Reveal key={i} delay={i*80}>
+                <div className={`rounded-2xl p-6 ${glass}`}>
+                  <h4 className="font-semibold text-neutral-900 mb-2" style={fontDisplay}>{f.q}</h4>
+                  <p className="text-neutral-500 text-sm leading-relaxed">{f.a}</p>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ===== SCENE 09 — CONTACT ===== */}
       <section id="contact" data-scene className="snap-start relative min-h-dvh flex flex-col justify-center py-24">
-        <div className="max-w-4xl mx-auto px-6 sm:px-8 w-full">
-          <Reveal>
-            <div className={`rounded-[2.5rem] px-6 sm:px-16 py-20 text-center ${glass}`}>
-              <div className="flex justify-center"><Chapter no="07" label="Begin"/></div>
-              <h2 className="font-semibold text-neutral-900 tracking-tight mb-6" style={{...fontDisplay,fontSize:'clamp(2.25rem,6vw,4.5rem)'}}>Your story<br/><span className="italic" style={{color:GOLDT}}>starts here.</span></h2>
-              <p className="text-neutral-600 text-lg mb-10 max-w-xl mx-auto">Tell me what you&apos;re looking for — buying, selling or renting in {BRAND.region}. I&apos;ll do the legwork.</p>
-              <a href={waHref(`Hi ${agentName}! I'm looking for a property. Can you help me?`)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2.5 bg-[#25D366] hover:bg-[#1ebe5a] text-white font-semibold px-10 py-4 rounded-full transition-all duration-200 shadow-[0_10px_40px_-12px_rgba(37,211,102,0.7)] active:scale-[0.97]">{Icons.wa} Chat on WhatsApp</a>
+        <div className="max-w-7xl mx-auto px-6 sm:px-8 w-full">
+          <Reveal className="max-w-2xl mx-auto text-center">
+            <Chapter no="09" label="Begin"/>
+            <h2 className="font-semibold text-neutral-900 tracking-tight mb-5" style={{...fontDisplay,fontSize:'clamp(2rem,5vw,3.75rem)'}}>Ready to start?</h2>
+            <p className="text-neutral-600 text-lg mb-6">Your next chapter begins with a simple message. Let&apos;s chat.</p>
+            <div className={`rounded-3xl p-8 ${glass} mb-8 max-w-md mx-auto`}>
+              <div className="flex items-center gap-4 mb-4">
+                {profilePic?<img src={profilePic} alt={agentName} className="w-14 h-14 rounded-xl object-cover"/>:<div className="w-14 h-14 rounded-xl flex items-center justify-center text-black font-bold text-xl" style={{background:GOLD,...fontDisplay}}>{agentName[0]?.toUpperCase()}</div>}
+                <div className="text-left">
+                  <p className="font-semibold text-neutral-900" style={fontDisplay}>{agentName}</p>
+                  <p className="text-sm" style={{color:GOLDT}}>{BRAND.jobTitle} · {ren}</p>
+                </div>
+              </div>
+              <ul className="text-left space-y-2 text-sm text-neutral-600 mb-6">
+                <li className="flex items-center gap-2">{Icons.location}<span>{BRAND.region}, {BRAND.country}</span></li>
+                <li className="flex items-center gap-2">{Icons.wa}<span>{BRAND.phoneDisplay}</span></li>
+                <li className="flex items-center gap-2">{Icons.chat}<span>{email}</span></li>
+              </ul>
+              <p className="text-xs text-neutral-400">Languages: {languages.join(', ')}</p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <a href={waHref(`Hi ${agentName}! I found your property page and would like to know more.`)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center gap-2.5 bg-[#25D366] hover:bg-[#1ebe5a] text-white font-semibold px-8 py-4 rounded-full transition-all duration-200 shadow-[0_10px_40px_-12px_rgba(37,211,102,0.7)] active:scale-[0.97]">{Icons.wa} WhatsApp Now</a>
+              <a href={`mailto:${email}`} className={`inline-flex items-center justify-center gap-2 px-8 py-4 rounded-full font-semibold text-neutral-800 hover:text-neutral-900 transition-all duration-200 ${glass}`}>Email Us</a>
             </div>
           </Reveal>
         </div>
@@ -693,7 +783,8 @@ export default function PublicListingsPage() {
         </div>
       </footer>
 
-      {selected&&<DetailModal p={selected} phone={ph} agentName={agentName} onClose={()=>setSelected(null)}/>}
+      {/* Jackson pops up and introduces each section as you scroll */}
+      <GuideAvatar active={active}/>
     </div>
   )
 }

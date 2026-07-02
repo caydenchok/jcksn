@@ -79,10 +79,10 @@ export default function SettingsPage() {
 
   return (
     <div className="min-h-screen bg-[#080808]">
-      <div className="px-12 pt-10 pb-12">
-        <div className="flex items-end justify-between mb-10">
+      <div className="px-4 sm:px-6 lg:px-12 pt-10 pb-12">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8 sm:mb-10">
           <div>
-            <h1 className="text-5xl font-bold tracking-tight text-white">Settings</h1>
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white">Settings</h1>
             <p className="text-zinc-500 mt-2 text-base">Configure your agent profile for WhatsApp bot</p>
           </div>
           <Button
@@ -132,7 +132,7 @@ export default function SettingsPage() {
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
                     <Label className="text-zinc-400 text-xs font-medium uppercase tracking-wider">Agent Name *</Label>
                     <Input
@@ -152,7 +152,7 @@ export default function SettingsPage() {
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
                     <Label className="text-zinc-400 text-xs font-medium uppercase tracking-wider">Email</Label>
                     <Input
@@ -172,7 +172,7 @@ export default function SettingsPage() {
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
                     <Label className="text-zinc-400 text-xs font-medium uppercase tracking-wider">License No.</Label>
                     <Input
@@ -219,7 +219,7 @@ export default function SettingsPage() {
                     className="w-full h-24 px-4 py-3 mt-1.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-zinc-600 text-sm focus:outline-none focus:ring-2 focus:ring-white/20 transition-all"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                   <div>
                     <Label className="text-zinc-400 text-xs font-medium uppercase tracking-wider">Languages</Label>
                     <Input

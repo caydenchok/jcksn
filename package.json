@@ -1,10 +1,10 @@
 {
-  "name": "whatsapp-property-ai",
+  "name": "jcksn",
   "version": "1.0.0",
   "private": true,
   "main": "electron/main.js",
   "author": "JCKSN",
-  "description": "AI-powered WhatsApp chatbot for property agents",
+  "description": "AI-powered property assistant",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -18,48 +18,63 @@
     "postinstall": "prisma generate"
   },
   "build": {
-    "appId": "com.propertyai.whatsapp",
-    "productName": "JCKSN WhatsApp",
+    "appId": "com.jcksn.property",
+    "productName": "JCKSN",
     "directories": {
       "output": "dist-electron"
     },
     "files": [
       "electron/**/*",
-      "out/**/*",
-      "server.js",
-      "package.json",
-      "node_modules/**/*"
+      ".next/standalone/.next/**/*",
+      ".next/standalone/node_modules/**/*",
+      ".next/standalone/server.js",
+      ".next/standalone/package.json",
+      ".next/static/**/*",
+      "public/**/*"
     ],
     "extraResources": [
       {
         "from": ".env",
-        "to": ".env",
-        "filter": [
-          "**/*"
-        ]
+        "to": ".env"
       },
       {
         "from": "dev.db",
-        "to": "dev.db",
-        "filter": [
-          "**/*"
-        ]
+        "to": "dev.db"
+      },
+      {
+        "from": "whatsapp-auth",
+        "to": "whatsapp-auth"
       }
     ],
-    "asar": true,
-    "asarUnpack": [],
+    "asar": false,
+    "asarUnpack": [
+      ".next/standalone/**/*",
+      ".next/static/**/*",
+      "public/**/*",
+      "server.js"
+    ],
     "win": {
-      "target": "nsis",
-      "icon": "public/icon.png"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64", "arm64"]
+        }
+      ],
+      "icon": "public/icon-512.png"
     },
     "mac": {
-      "target": "dmg",
-      "icon": "public/icon.png",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
+      ],
+      "icon": "public/icon-512.png",
       "category": "public.app-category.productivity"
     },
     "linux": {
       "target": "AppImage",
-      "icon": "public/icon.png",
+      "icon": "public/icon-512.png",
       "category": "Utility"
     },
     "nsis": {
@@ -67,7 +82,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "JCKSN WhatsApp"
+      "shortcutName": "JCKSN"
     }
   },
   "dependencies": {

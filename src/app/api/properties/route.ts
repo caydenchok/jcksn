@@ -129,31 +129,82 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const data = await request.json()
+  const contentType = request.headers.get('content-type') || ''
 
-  if (!data.id) {
+  let id: number | undefined
+  const updateData: any = {}
+  const newImages: string[] = []
+
+  if (contentType.includes('multipart/form-data')) {
+    const formData = await request.formData()
+    id = parseInt(formData.get('id') as string)
+    if (formData.get('title') !== null) updateData.title = formData.get('title')
+    if (formData.get('description') !== null) updateData.description = formData.get('description')
+    if (formData.get('price') !== null) updateData.price = parseFloat(formData.get('price') as string)
+    if (formData.get('propertyType') !== null) updateData.propertyType = formData.get('propertyType')
+    if (formData.get('propertyCategory') !== null) updateData.propertyCategory = formData.get('propertyCategory')
+    if (formData.get('purpose') !== null) updateData.purpose = formData.get('purpose')
+    if (formData.get('tenure') !== null) updateData.tenure = formData.get('tenure')
+    if (formData.get('furnishing') !== null) updateData.furnishing = formData.get('furnishing')
+    if (formData.get('lotType') !== null) updateData.lotType = formData.get('lotType')
+    if (formData.get('location') !== null) updateData.location = formData.get('location')
+    if (formData.get('state') !== null) updateData.state = formData.get('state')
+    if (formData.get('size') !== null) updateData.size = formData.get('size')
+    if (formData.get('landSize') !== null) updateData.landSize = formData.get('landSize')
+    if (formData.get('bedrooms') !== null) updateData.bedrooms = parseInt(formData.get('bedrooms') as string)
+    if (formData.get('bathrooms') !== null) updateData.bathrooms = parseInt(formData.get('bathrooms') as string)
+    if (formData.get('carParks') !== null) updateData.carParks = parseInt(formData.get('carParks') as string)
+    if (formData.get('features') !== null) updateData.features = formData.get('features')
+
+    const existingImagesRaw = formData.get('existingImages') as string | null
+    const imageFiles = formData.getAll('images')
+    if (!existsSync(UPLOAD_DIR)) mkdirSync(UPLOAD_DIR, { recursive: true })
+    for (const file of imageFiles) {
+      if (file instanceof File && file.size > 0) {
+        const bytes = await file.arrayBuffer()
+        const buffer = Buffer.from(bytes)
+        const ext = file.name.split('.').pop() || 'jpg'
+        const filename = `${uuid()}.${ext}`
+        await writeFile(path.join(UPLOAD_DIR, filename), buffer)
+        newImages.push(`/uploads/${filename}`)
+      }
+    }
+
+    if (existingImagesRaw || newImages.length > 0) {
+      let kept: string[] = []
+      if (existingImagesRaw) {
+        try { kept = JSON.parse(existingImagesRaw) } catch {}
+      }
+      updateData.images = JSON.stringify([...kept, ...newImages])
+    }
+  } else {
+    const data = await request.json()
+    id = data.id
+    if (data.title !== undefined) updateData.title = data.title
+    if (data.description !== undefined) updateData.description = data.description
+    if (data.price !== undefined) updateData.price = parseFloat(data.price)
+    if (data.propertyType !== undefined) updateData.propertyType = data.propertyType
+    if (data.propertyCategory !== undefined) updateData.propertyCategory = data.propertyCategory
+    if (data.tenure !== undefined) updateData.tenure = data.tenure
+    if (data.furnishing !== undefined) updateData.furnishing = data.furnishing
+    if (data.lotType !== undefined) updateData.lotType = data.lotType
+    if (data.location !== undefined) updateData.location = data.location
+    if (data.state !== undefined) updateData.state = data.state
+    if (data.size !== undefined) updateData.size = data.size
+    if (data.landSize !== undefined) updateData.landSize = data.landSize
+    if (data.bedrooms !== undefined) updateData.bedrooms = parseInt(data.bedrooms)
+    if (data.bathrooms !== undefined) updateData.bathrooms = parseInt(data.bathrooms)
+    if (data.carParks !== undefined) updateData.carParks = parseInt(data.carParks)
+    if (data.features !== undefined) updateData.features = data.features
+  }
+
+  if (!id) {
     return NextResponse.json({ error: 'Missing property id' }, { status: 400 })
   }
 
-  const updateData: any = {}
-  if (data.title !== undefined) updateData.title = data.title
-  if (data.description !== undefined) updateData.description = data.description
-  if (data.price !== undefined) updateData.price = parseFloat(data.price)
-  if (data.propertyType !== undefined) updateData.propertyType = data.propertyType
-  if (data.propertyCategory !== undefined) updateData.propertyCategory = data.propertyCategory
-  if (data.tenure !== undefined) updateData.tenure = data.tenure
-  if (data.furnishing !== undefined) updateData.furnishing = data.furnishing
-  if (data.lotType !== undefined) updateData.lotType = data.lotType
-  if (data.location !== undefined) updateData.location = data.location
-  if (data.state !== undefined) updateData.state = data.state
-  if (data.size !== undefined) updateData.size = data.size
-  if (data.landSize !== undefined) updateData.landSize = data.landSize
-  if (data.bedrooms !== undefined) updateData.bedrooms = parseInt(data.bedrooms)
-  if (data.bathrooms !== undefined) updateData.bathrooms = parseInt(data.bathrooms)
-
   try {
     const property = await prisma.property.update({
-      where: { id: data.id },
+      where: { id },
       data: updateData,
     })
 

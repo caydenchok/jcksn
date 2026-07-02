@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#E2A93B;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#F3D58C;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#8A6512;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="grad2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#F3D58C;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#C4922A;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="240" fill="#0a0a0a"/>
+  <!-- Diamond shape -->
+  <polygon 
+    points="256,60 420,200 256,452 92,200" 
+    fill="url(#grad1)" 
+    filter="url(#shadow)"
+    stroke="#F3D58C" 
+    stroke-width="2"
+  />
+  <!-- Diamond facets -->
+  <polygon points="256,60 340,200 256,452" fill="url(#grad2)" opacity="0.6"/>
+  <polygon points="256,60 172,200 256,200" fill="#F3D58C" opacity="0.4"/>
+  <polygon points="420,200 256,452 256,200" fill="#8A6512" opacity="0.3"/>
+  <polygon points="92,200 256,452 256,200" fill="#C4922A" opacity="0.4"/>
+  <!-- Top facet highlight -->
+  <polygon points="256,60 310,160 256,200 202,160" fill="#FFF8E7" opacity="0.5"/>
+  <!-- Sparkle -->
+  <circle cx="256" cy="120" r="4" fill="white" opacity="0.8"/>
+  <circle cx="256" cy="120" r="8" fill="white" opacity="0.3"/>
+  <!-- Text -->
+  <text x="256" y="340" text-anchor="middle" font-family="Georgia, serif" font-size="48" font-weight="bold" fill="#F3D58C" letter-spacing="8">JCKSN</text>
+</svg>

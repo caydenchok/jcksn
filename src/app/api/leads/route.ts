@@ -81,6 +81,8 @@ export async function PATCH(request: Request) {
   if (data.location !== undefined) updateData.location = data.location
   if (data.budget !== undefined) updateData.budget = data.budget
   if (data.requirement !== undefined) updateData.requirement = data.requirement
+  if (data.profileUrl !== undefined) updateData.profileUrl = data.profileUrl
+  if (data.nameVerified !== undefined) updateData.nameVerified = data.nameVerified
 
   const lead = await prisma.lead.update({
     where: { id: data.id },
