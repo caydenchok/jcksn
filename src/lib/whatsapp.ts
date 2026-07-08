@@ -22,6 +22,30 @@ let sock: ReturnType<typeof makeWASocket> | null = null
 let qrCode: string | null = null
 let connectionStatus: 'disconnected' | 'connecting' | 'connected' = 'disconnected'
 let botEnabled = true
+// Numbers the bot should never auto-reply to (e.g. friends/family) — the
+// agent adds these manually since there's no reliable way to read "is this
+// saved as a contact on my phone" through the WhatsApp connection library.
+let excludedNumbers = new Set<string>()
+
+// Canonical form for comparing phone numbers regardless of how they were
+// typed (with/without +60, leading 0, spaces, dashes) — matches the format
+// `phone` is already derived in as (digits only, 60-prefixed, no leading 0).
+export function normalizePhone(raw: string): string {
+  let digits = raw.replace(/\D/g, '')
+  if (digits.startsWith('0')) digits = '60' + digits.slice(1)
+  else if (!digits.startsWith('60')) digits = '60' + digits
+  return digits
+}
+
+export function getExcludedNumbers() { return Array.from(excludedNumbers) }
+export async function setExcludedNumbers(numbers: string[]) {
+  excludedNumbers = new Set(numbers.map(normalizePhone))
+  await prisma.setting.upsert({
+    where: { key: 'whatsapp_excluded_numbers' },
+    update: { value: JSON.stringify(Array.from(excludedNumbers)) },
+    create: { key: 'whatsapp_excluded_numbers', value: JSON.stringify(Array.from(excludedNumbers)) },
+  })
+}
 // Socket lifecycle guards. Every (re)start bumps `generation`; event handlers
 // and reconnect timers from older sockets check it and no-op. This prevents
 // two live sockets fighting over one session (WhatsApp kicks both with
@@ -85,6 +109,13 @@ export async function startWhatsApp() {
       const setting = await prisma.setting.findUnique({ where: { key: 'bot_enabled' } })
       botEnabled = setting?.value !== 'false'
       console.log(`[WA] Bot status loaded: ${botEnabled ? 'ON' : 'OFF'}`)
+    } catch {}
+
+    // Load excluded (do-not-auto-reply) numbers from database
+    try {
+      const setting = await prisma.setting.findUnique({ where: { key: 'whatsapp_excluded_numbers' } })
+      excludedNumbers = new Set(setting ? JSON.parse(setting.value) : [])
+      console.log(`[WA] Excluded numbers loaded: ${excludedNumbers.size}`)
     } catch {}
 
     // Tear down any previous socket so two sockets never share one session.
@@ -178,6 +209,29 @@ async function processMessage(msg: any) {
     const phone = jid.replace('@s.whatsapp.net', '').replace('@lid', '')
     const content = getMessageContent(msg)
     if (!content) return
+
+    // Excluded numbers (friends/family) — skip entirely, no logging, no
+    // reply. The agent replies to these manually like a normal WhatsApp chat.
+    if (excludedNumbers.has(normalizePhone(phone))) {
+      console.log(`[WA] Skipping excluded number ${phone}`)
+      return
+    }
+
+    // A scraped lead messaging us IS the verification: the number is real,
+    // reachable, and WhatsApp shows us their actual display name (pushName).
+    // Runs regardless of the bot on/off toggle — identity confirmation isn't
+    // an auto-reply.
+    try {
+      const unverified = await prisma.lead.findMany({ where: { nameVerified: false } })
+      const matched = unverified.find(l => l.phone && normalizePhone(l.phone) === normalizePhone(phone))
+      if (matched) {
+        await prisma.lead.update({
+          where: { id: matched.id },
+          data: { nameVerified: true, ...(msg.pushName ? { name: msg.pushName } : {}) },
+        })
+        console.log(`[WA] Lead #${matched.id} verified — messaged us on WhatsApp${msg.pushName ? ` as "${msg.pushName}"` : ''}`)
+      }
+    } catch {}
 
     // Check if bot is enabled - if not, skip AI responses (user replies manually)
     if (!botEnabled) {

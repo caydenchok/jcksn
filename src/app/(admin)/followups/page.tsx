@@ -61,6 +61,13 @@ export default function FollowupsPage() {
     } catch {}
   }
 
+  async function deleteFollowUp(phone: string) {
+    try {
+      await fetch(`/api/followup?phone=${encodeURIComponent(phone)}`, { method: 'DELETE' })
+      fetchFollowups()
+    } catch {}
+  }
+
   async function sendBulkFollowup() {
     try {
       await fetch('/api/followup', {
@@ -207,6 +214,9 @@ export default function FollowupsPage() {
                     <button onClick={() => markComplete(h.phone)} className="px-3 py-1.5 text-xs font-medium bg-zinc-500/20 hover:bg-zinc-500/30 text-zinc-400 rounded-lg transition-colors">
                       Done
                     </button>
+                    <button onClick={() => deleteFollowUp(h.phone)} className="px-3 py-1.5 text-xs font-medium bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-colors" title="Remove from follow-ups">
+                      ✕
+                    </button>
                   </div>
                 </div>
               ))}
@@ -242,7 +252,7 @@ export default function FollowupsPage() {
                     <p className="text-xs text-zinc-500 mt-1">📱 {h.phone}</p>
                     <p className="text-xs text-zinc-600 mt-1">Last active: {new Date(h.lastActive).toLocaleDateString()}</p>
                   </div>
-                  <div className="flex gap-2 ml-3">
+                   <div className="flex gap-2 ml-3">
                     {h.followUpCount < 3 ? (
                       <button onClick={() => sendFollowUp(h.phone)} disabled={sending === h.phone} className="px-3 py-1.5 text-xs font-medium bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 rounded-lg transition-colors disabled:opacity-50">
                         {sending === h.phone ? 'Sending...' : 'Send Check-in'}
@@ -250,6 +260,9 @@ export default function FollowupsPage() {
                     ) : (
                       <span className="text-xs text-zinc-600 px-3 py-1.5">Max sent</span>
                     )}
+                    <button onClick={() => deleteFollowUp(h.phone)} className="px-3 py-1.5 text-xs font-medium bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg transition-colors" title="Remove from follow-ups">
+                      ✕
+                    </button>
                   </div>
                 </div>
               ))}

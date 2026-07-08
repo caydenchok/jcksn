@@ -10,9 +10,12 @@ export async function GET(request: Request) {
   if (status) where.status = status
   if (source) where.source = source
 
+  // Freshest buyer intent first: sort by when the person actually POSTED
+  // (SQLite puts NULL postedAt last on DESC), falling back to import time
+  // for manually-added leads.
   const leads = await prisma.lead.findMany({
     where,
-    orderBy: { createdAt: 'desc' },
+    orderBy: [{ postedAt: 'desc' }, { createdAt: 'desc' }],
   })
 
   return NextResponse.json(leads)

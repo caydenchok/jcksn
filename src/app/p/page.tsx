@@ -262,7 +262,7 @@ export default function PublicListingsPage() {
   const [active,setActive]=useState('top')
 
   useEffect(()=>{
-    Promise.all([fetch('/api/properties').then(r=>r.json()),fetch('/api/agent').then(r=>r.json())]).then(([props,agentData])=>{
+    Promise.all([fetch('/data/properties.json').then(r=>r.json()),fetch('/data/agent.json').then(r=>r.json())]).then(([props,agentData])=>{
       setProperties(Array.isArray(props)?props.filter((p:Property)=>p.status==='available'):[])
       setAgent(agentData)
       setLoading(false)

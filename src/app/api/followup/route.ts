@@ -29,6 +29,24 @@ export async function GET() {
   }
 }
 
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const phone = searchParams.get('phone')
+    if (!phone) return NextResponse.json({ error: 'Phone required' }, { status: 400 })
+
+    await prisma.conversation.update({
+      where: { phone },
+      data: { followUpCount: 99 },
+    })
+
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    console.error('[FollowUp] DELETE error:', error)
+    return NextResponse.json({ error: 'Failed' }, { status: 500 })
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const data = await request.json()

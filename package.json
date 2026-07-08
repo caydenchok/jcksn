@@ -15,6 +15,7 @@
     "electron:build:mac": "npm run build && electron-builder --mac",
     "electron:build:all": "npm run build && electron-builder --win --mac",
     "electron:build:linux": "npm run build && electron-builder --linux",
+    "export-public": "node scripts/export-public.mjs",
     "postinstall": "prisma generate"
   },
   "build": {

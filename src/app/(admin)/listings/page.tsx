@@ -317,13 +317,28 @@ export default function ListingsPage() {
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white">Listings</h1>
             <p className="text-zinc-500 mt-2 text-base">Manage your property portfolio</p>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger render={<button className="inline-flex items-center gap-2.5 bg-white hover:bg-zinc-200 text-black font-semibold px-6 py-3 rounded-xl text-base transition-all duration-150 active:scale-[0.97]" onClick={openCreate} />}>
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+          <div className="flex items-center gap-3">
+            <button
+              onClick={async () => {
+                const res = await fetch('/api/export-public', { method: 'POST' })
+                const data = await res.json()
+                if (data.success) alert(`Exported ${data.properties} properties for public site`)
+                else alert('Export failed: ' + (data.error || 'unknown'))
+              }}
+              className="inline-flex items-center gap-2.5 border border-white/10 hover:bg-white/5 text-zinc-300 font-semibold px-5 py-3 rounded-xl text-sm transition-all duration-150 active:scale-[0.97]"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
               </svg>
-              Add Property
-            </DialogTrigger>
+              Export
+            </button>
+            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+              <DialogTrigger render={<button className="inline-flex items-center gap-2.5 bg-white hover:bg-zinc-200 text-black font-semibold px-6 py-3 rounded-xl text-base transition-all duration-150 active:scale-[0.97]" onClick={openCreate} />}>
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                Add Property
+              </DialogTrigger>
             <DialogContent className="bg-[#0a0a0a] border-white/10 w-[95vw] max-w-[1600px] max-h-[90vh] overflow-y-auto p-6">
               <DialogHeader>
                 <DialogTitle className="text-xl">{editingProperty ? 'Edit Property' : 'Add New Property'}</DialogTitle>
@@ -615,6 +630,7 @@ export default function ListingsPage() {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 mb-8">

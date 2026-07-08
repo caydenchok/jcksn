@@ -67,6 +67,10 @@ model Lead {
   profileUrl  String   @default("")
   nameVerified Boolean @default(false)
   matchedPropertyId Int?
+  // When the scraped post/comment was actually WRITTEN by the person —
+  // createdAt only records when WE imported it, which says nothing about
+  // how fresh the buyer's intent is.
+  postedAt    DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }

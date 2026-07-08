@@ -73,13 +73,47 @@ export default function WhatsAppPage() {
     enabledCommands: ALL_COMMANDS.map(c => c.id),
   })
   const [saved, setSaved] = useState<'idle' | 'success' | 'error'>('idle')
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+  const [excludedNumbers, setExcludedNumbersState] = useState<string[]>([])
+  const [newExcludedNumber, setNewExcludedNumber] = useState('')
 
   useEffect(() => {
     fetchStatus()
     fetchConfig()
+    fetchExcludedNumbers()
     const interval = setInterval(fetchStatus, 3000)
     return () => clearInterval(interval)
   }, [])
+
+  async function fetchExcludedNumbers() {
+    try {
+      const res = await fetch('/api/excluded-numbers')
+      const data = await res.json()
+      setExcludedNumbersState(data.numbers || [])
+    } catch {}
+  }
+
+  async function saveExcludedNumbers(numbers: string[]) {
+    setExcludedNumbersState(numbers)
+    try {
+      await fetch('/api/excluded-numbers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ numbers }),
+      })
+    } catch {}
+  }
+
+  function addExcludedNumber() {
+    const trimmed = newExcludedNumber.trim()
+    if (!trimmed) return
+    saveExcludedNumbers([...excludedNumbers, trimmed])
+    setNewExcludedNumber('')
+  }
+
+  function removeExcludedNumber(index: number) {
+    saveExcludedNumbers(excludedNumbers.filter((_, i) => i !== index))
+  }
 
   async function fetchStatus() {
     try {
@@ -127,6 +161,10 @@ export default function WhatsAppPage() {
       setSaved('error')
       setTimeout(() => setSaved('idle'), 3000)
     }
+  }
+
+  function toggleCollapsed(key: string) {
+    setCollapsed(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
   function toggleCommand(commandId: string) {
@@ -312,68 +350,97 @@ export default function WhatsAppPage() {
 
         {/* Bot Settings Tab */}
         {activeTab === 'settings' && (
-          <div className="space-y-6">
-            {/* Welcome Message */}
-            <Card className="bg-[#0c0c0c] border-white/[0.04]">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg">Welcome Message</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label className="text-zinc-400 text-xs font-medium uppercase tracking-wider">First Response</Label>
-                  <p className="text-xs text-zinc-600 mt-1 mb-3">This is what the bot says when a customer says hi or hello</p>
+          <div className="space-y-4">
+            {/* Welcome Message — compact inline */}
+            <div className="bg-[#0c0c0c] border border-white/[0.04] rounded-xl p-4">
+              <div className="flex items-center justify-between mb-2 cursor-pointer select-none" onClick={() => toggleCollapsed('welcome')}>
+                <Label className="text-white text-xs font-semibold uppercase tracking-wider">Welcome Message</Label>
+                <svg className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${collapsed.welcome ? '-rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+              </div>
+              {!collapsed.welcome && (
+                <>
+                  <p className="text-[11px] text-zinc-500 mb-2">What the bot says when a customer first messages</p>
                   <textarea
                     value={config.welcomeMessage}
                     onChange={(e: ChangeEvent<HTMLTextAreaElement>) => setConfig(prev => ({ ...prev, welcomeMessage: e.target.value }))}
                     placeholder="Hi! I'm [Your Name], your property assistant. How can I help you today?"
-                    className="w-full h-28 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-zinc-600 text-sm focus:outline-none focus:ring-2 focus:ring-white/20 transition-all"
+                    className="w-full h-20 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder:text-zinc-600 text-xs focus:outline-none focus:ring-1 focus:ring-white/20 transition-all"
                   />
-                </div>
-                <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-sm text-emerald-300">
-                  Preview: {config.welcomeMessage || 'Hi! I\'m [Your Name], your property assistant. How can I help you today?'}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Command Toggles */}
-            <Card className="bg-[#0c0c0c] border-white/[0.04]">
-              <CardHeader className="pb-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-lg">Enabled Commands</CardTitle>
-                    <p className="text-xs text-zinc-500 mt-1">Toggle which commands customers can use</p>
+                  <div className="mt-2 px-3 py-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-300 line-clamp-2">
+                    {config.welcomeMessage || 'Hi! I\'m [Your Name], your property assistant. How can I help you today?'}
                   </div>
-                  <span className="text-sm text-zinc-500">{config.enabledCommands.length} active</span>
+                </>
+              )}
+            </div>
+
+            {/* Commands — compact pill grid */}
+            <div className="bg-[#0c0c0c] border border-white/[0.04] rounded-xl p-4">
+              <div className="flex items-center justify-between mb-2 cursor-pointer select-none" onClick={() => toggleCollapsed('commands')}>
+                <div className="flex items-center gap-3">
+                  <Label className="text-white text-xs font-semibold uppercase tracking-wider">Commands</Label>
+                  <span className="text-[10px] text-zinc-500 bg-white/5 px-2 py-0.5 rounded-full">{config.enabledCommands.length}/{ALL_COMMANDS.length}</span>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <svg className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${collapsed.commands ? '-rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+              </div>
+              {!collapsed.commands && (
+                <div className="flex flex-wrap gap-1.5">
                   {ALL_COMMANDS.map(cmd => (
                     <button
                       key={cmd.id}
                       onClick={() => toggleCommand(cmd.id)}
-                      className={`p-4 rounded-xl border text-left transition-all ${
+                      title={cmd.desc}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all border ${
                         config.enabledCommands.includes(cmd.id)
-                          ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                          ? 'bg-emerald-500/15 border-emerald-500/25 text-emerald-400'
                           : 'bg-white/5 border-white/5 text-zinc-500 hover:bg-white/[0.07]'
                       }`}
                     >
-                      <div className="flex items-center justify-between">
-                        <p className="font-medium text-sm">{cmd.name}</p>
-                        <div className={`w-8 h-5 rounded-full transition-all ${
-                          config.enabledCommands.includes(cmd.id) ? 'bg-emerald-500' : 'bg-zinc-700'
-                        }`}>
-                          <div className={`w-4 h-4 rounded-full bg-white mt-0.5 transition-all ${
-                            config.enabledCommands.includes(cmd.id) ? 'ml-3.5' : 'ml-0.5'
-                          }`} />
-                        </div>
-                      </div>
-                      <p className="text-xs opacity-70 mt-1">{cmd.desc}</p>
+                      {cmd.name}
                     </button>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
+              )}
+            </div>
+
+            {/* Do Not Auto-Reply — compact */}
+            <div className="bg-[#0c0c0c] border border-white/[0.04] rounded-xl p-4">
+              <div className="flex items-center justify-between mb-2 cursor-pointer select-none" onClick={() => toggleCollapsed('excluded')}>
+                <div className="flex items-center gap-3">
+                  <Label className="text-white text-xs font-semibold uppercase tracking-wider">Do Not Auto-Reply</Label>
+                  {excludedNumbers.length > 0 && (
+                    <span className="text-[10px] text-zinc-500 bg-white/5 px-2 py-0.5 rounded-full">{excludedNumbers.length}</span>
+                  )}
+                </div>
+                <svg className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${collapsed.excluded ? '-rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+              </div>
+              {!collapsed.excluded && (
+                <>
+                  <p className="text-[11px] text-zinc-500 mb-2">Skipped entirely — no reply, no logging. Add friends/family so only new leads get auto-replies.</p>
+                  <div className="flex gap-2 max-w-sm" onClick={(e) => e.stopPropagation()}>
+                    <Input
+                      value={newExcludedNumber}
+                      onChange={(e) => setNewExcludedNumber(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && addExcludedNumber()}
+                      placeholder="e.g. 0123456789"
+                      className="bg-white/5 border-white/10 h-9 text-xs"
+                    />
+                    <Button onClick={addExcludedNumber} className="bg-white/10 hover:bg-white/20 text-white font-semibold h-9 rounded-lg px-3 text-xs flex-shrink-0">
+                      Add
+                    </Button>
+                  </div>
+                  {excludedNumbers.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {excludedNumbers.map((n, i) => (
+                        <span key={i} className="flex items-center gap-1 px-2 py-1 rounded-md bg-white/5 text-zinc-400 text-[11px] border border-white/5">
+                          {n}
+                          <button onClick={() => removeExcludedNumber(i)} className="text-zinc-600 hover:text-red-400 ml-0.5">×</button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         )}
       </div>

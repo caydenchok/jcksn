@@ -97,12 +97,13 @@ export default function PropertyDetailPage() {
     if (!id) return
     let alive = true
     Promise.all([
-      fetch(`/api/properties?id=${id}`).then(r => (r.ok ? r.json() : Promise.reject())),
-      fetch('/api/agent').then(r => r.json()).catch(() => null),
+      fetch('/data/properties.json').then(r => r.json()),
+      fetch('/data/agent.json').then(r => r.json()).catch(() => null),
     ])
-      .then(([prop, agentData]) => {
+      .then(([props, agentData]) => {
         if (!alive) return
-        if (!prop || prop.error) { setNotFound(true); setLoading(false); return }
+        const prop = Array.isArray(props) ? props.find((p: Property) => String(p.id) === id) : null
+        if (!prop) { setNotFound(true); setLoading(false); return }
         setProperty(prop)
         setAgent(agentData)
         setLoading(false)

@@ -9,36 +9,15 @@ let serverProcess
 let ollamaProcess
 const PORT = 3847
 
-async function waitForServer(port, timeout = 60000) {
-  const http = require('http')
-  return new Promise((resolve, reject) => {
-    const start = Date.now()
-    const check = () => {
-      // Check if server process is still alive
-      if (serverProcess && serverProcess.exitCode !== null) {
-        reject(new Error('Server process died'))
-        return
-      }
-      http.get(`http://127.0.0.1:${port}`, (res) => {
-        resolve()
-      }).on('error', () => {
-        if (Date.now() - start > timeout) {
-          reject(new Error('Server startup timeout'))
-        } else {
-          setTimeout(check, 1000)
-        }
-      })
-    }
-    // Wait 2 seconds before first check to let server start
-    setTimeout(check, 2000)
-  })
-}
-
 function waitForServer(port, timeout = 60000) {
   const http = require('http')
   return new Promise((resolve, reject) => {
     const start = Date.now()
     const check = () => {
+      if (serverProcess && serverProcess.exitCode !== null) {
+        reject(new Error('Server process died'))
+        return
+      }
       http.get(`http://127.0.0.1:${port}`, (res) => {
         resolve()
       }).on('error', () => {
